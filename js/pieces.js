@@ -143,9 +143,20 @@
   // ---------- state ----------
   var S = null, LIST = null;
   function fresh() { return { v: 1, qrev: QREV, i: 0, stage: 'params', qi: 0, ans: {}, quiz: {}, notes: {}, sent: {} }; }
-  async function load() { S = fresh(); try { var raw = localStorage.getItem(QK); if (raw) { var s = await BI.dec(JSON.parse(raw)); if (s && s.v === 1) S = s; } } catch (e) { localStorage.removeItem(QK); }
-    if (S.qrev !== QREV) { S.quiz = {}; S.qrev = QREV; if (S.stage === 'quiz') { S.stage = 'params'; S.qi = 0; } } }   // questions were rewritten: old quiz answers would not match
-  async function save() { try { localStorage.setItem(QK, JSON.stringify(await BI.enc(S))); } catch (e) {} }
+  // resume on refresh (window.Resume, js/app.js): ONE record 'pieces'; pos = the flat step (each piece's card, then its
+  // challenges), so a changed quiz maps to the same relative point. The old 'buildit-pieces' store moves in once.
+  function flatLen() { return LIST.reduce(function (n, pc) { return n + 1 + pc.quiz.length; }, 0); }
+  function flatPos() { var n = 0; for (var k = 0; k < Math.min(S.i, LIST.length); k++) n += 1 + LIST[k].quiz.length; return S.i >= LIST.length ? flatLen() : n + (S.stage === 'quiz' ? 1 + S.qi : 0); }
+  function fromPos(pos) { for (var k = 0; k < LIST.length; k++) { var w = 1 + LIST[k].quiz.length; if (pos < w) { S.i = k; S.stage = pos ? 'quiz' : 'params'; S.qi = Math.max(0, pos - 1); return; } pos -= w; } S.i = LIST.length - 1; S.stage = 'params'; S.qi = 0; }
+  async function load() {
+    S = fresh(); var R = window.Resume, r = R && await R.load('pieces', QREV, flatLen());
+    if (r && r.answers && r.answers.v === 1) { S = r.answers; if (!r.same) { S.quiz = {}; S.qrev = QREV; fromPos(r.pos); } }
+    else { try { var raw = localStorage.getItem(QK); if (raw) { var s = await BI.dec(JSON.parse(raw)); if (s && s.v === 1) S = s; } } catch (e) {} localStorage.removeItem(QK);
+      if (S.qrev !== QREV) { var ratio = S.i / Math.max(1, LIST.length); S.quiz = {}; S.qrev = QREV; if (S.stage === 'quiz') { S.stage = 'params'; S.qi = 0; } if (S.i < LIST.length) S.i = Math.round(ratio * LIST.length); }
+      if (S.i > 0 || Object.keys(S.ans).length) save(); }
+  }
+  async function save() { if (!S || !LIST) return; if (S.i >= LIST.length) { if (window.Resume) Resume.clear('pieces'); return; } if (window.Resume) await Resume.save('pieces', QREV, flatPos(), flatLen(), S); }
+  function goBtn() { if (window.Resume) Resume.button($('pz-go'), 'pieces', 'Start', async function () { S = fresh(); resume(); }); }
   function show(on) { if (!on) undrop();
     ['q-start', 'q-quiz', 'q-break', 'q-done'].forEach(function (p) { if (on) $(p).hidden = true; }); $('pz').hidden = !on; if (!on) $('q-start').hidden = false; window.scrollTo(0, 0); }
 
@@ -248,7 +259,7 @@
     var s = $('pz-stat'); if (s) { s.className = 'sendstat ' + (st === 'failed' ? 'bad' : 'ok'); s.textContent = st === 'failed' ? 'Couldn’t send yet (no connection?). It’s saved in the chat. Tap Try again there.' : '✓ Sent to ' + BI.host() + ' (encrypted). Nothing changes until ' + BI.host() + ' says yes.'; }
   }
   function renderDone() {
-    undrop();
+    undrop(); if (window.Resume) Resume.clear('pieces');   // finished: the record goes
     var el = $('pz'), tot = 0, ok = 0;
     LIST.forEach(function (pc) { var s = summary(pc); tot += s.asked; ok += s.right; });
     el.innerHTML = '<h2>All pieces done! 🚀</h2><p class="pz-lead">' + esc(BI.host()) + ' has your picks for every piece and will say yes or no. You can go through any piece again, or ask ' + esc(BI.bot()) + ' something in the chat.</p>' +
@@ -256,7 +267,7 @@
     $('pz-again').onclick = function () { S.i = 0; S.stage = 'params'; save(); renderParams(); };
     $('pz-home').onclick = function () { show(false); resume(); };
   }
-  function resume() { var r = $('pz-resume'); if (!r || !S) return; if (S.i > 0 && S.i < LIST.length) { r.hidden = false; r.textContent = 'You were up to piece ' + (S.i + 1) + ' of ' + LIST.length + '. Start picks up from there.'; } else r.hidden = true; }
+  function resume() { goBtn(); var r = $('pz-resume'); if (!r || !S) return; if (S.i > 0 && S.i < LIST.length) { r.hidden = false; r.textContent = 'You were up to piece ' + (S.i + 1) + ' of ' + LIST.length + '. Start picks up from there.'; } else r.hidden = true; }
   async function open() {
     if (!window.BI || !BI.ready()) return;
     LIST = PIECES(); await load(); resume(); if (window.QuizOrb) QuizOrb.init();

@@ -81,11 +81,20 @@
   ];
   var NKEY = 'buildit.naming', N = null, running = false;
   function nfresh() { return { v: 1, named: {}, met: {}, q: [], done: 0 }; }
-  function nload() { try { var d = JSON.parse(localStorage.getItem(NKEY) || 'null'); if (d && d.v === 1) return d; } catch (e) {} return nfresh(); }
-  function nsave() { try { localStorage.setItem(NKEY, JSON.stringify(N)); } catch (e) {} }
+  // the finished mark stays in 'buildit.naming' ({v, done}); the half-done progress is the quiz's resume record ('naming')
+  async function nload() {
+    var d = nfresh(); try { var m = JSON.parse(localStorage.getItem(NKEY) || 'null'); if (m && m.done) d.done = m.done; } catch (e) {}
+    var r = !d.done && window.Resume && await Resume.load('naming', 1, ITEMS.length);
+    if (r && r.answers) { d.named = r.answers.named || {}; d.met = r.answers.met || {}; d.q = r.answers.q || []; }
+    return d;
+  }
+  function nsave() {
+    try { localStorage.setItem(NKEY, JSON.stringify({ v: 1, done: N.done || 0 })); } catch (e) {}
+    if (!window.Resume) return; if (N.done) Resume.clear('naming'); else Resume.save('naming', 1, namedCount(), ITEMS.length, { named: N.named, met: N.met, q: N.q });
+  }
   function item(id) { for (var i = 0; i < ITEMS.length; i++) if (ITEMS[i].id === id) return ITEMS[i]; return null; }
   function namedCount() { return ITEMS.filter(function (it) { return N.named[it.id]; }).length; }
-  function done() { if (!N) N = nload(); return !!N.done || ITEMS.every(function (it) { return N.named[it.id]; }); }
+  function done() { if (!N) return false; return !!N.done || ITEMS.every(function (it) { return N.named[it.id]; }); }
   // where a met part comes back: the first gap is a ratio of the set (n / PHI^4), each later gap PHI times longer
   var BASE = function () { return ITEMS.length / Math.pow(PHI, 4); };
   function queue() {
@@ -94,7 +103,7 @@
   }
   function start() {
     if (!window.QuizOrb || !window.BI || !BI.ready()) return;
-    N = N || nload(); queue();
+    queue();
     if (!N.q.length) return finish();
     running = true; document.documentElement.classList.add('ob-naming');
     $('view-q').hidden = false; $('view-c').hidden = true;   // the parts it points at are on the Questions view
@@ -133,10 +142,11 @@
     if (!g) { g = document.createElement('div'); g.id = 'ob-gate'; g.className = 'ob-gate'; var ld = $('q-lead'); qs.insertBefore(g, ld ? ld.nextSibling : qs.firstChild); }
     if (!d) g.innerHTML = '<p class="phase">Step 1 · everyone does this one</p><h2>Name every part of your page</h2>' +
       '<p class="pz-lead">To build your page, you need the names for its parts. The quiz orb points at each part, makes it bigger, and asks what it is called. The rest opens once every part has a name.</p>' +
-      '<div class="btnrow"><button type="button" class="btn big" id="ob-go" data-use="naming">' + (namedCount() ? 'Keep naming' : 'Start naming') + '</button></div><p class="muted" id="ob-prog"></p>';
+      '<div class="btnrow"><button type="button" class="btn big" id="ob-go" data-use="naming">Start naming</button></div><p class="muted" id="ob-prog"></p>';
     else g.innerHTML = '<div class="btnrow"><button type="button" class="btn ghost2" id="ob-learn-go" data-use="learn">What do you want to learn?</button></div>';
     ['pz-go', 'q-go'].forEach(function (id) { var b = $(id); if (!b) return; b.disabled = !d; b.setAttribute('aria-disabled', String(!d)); b.title = d ? '' : 'Opens after step 1: naming the parts of your page'; });
-    if (!d) { $('ob-go').onclick = start; prog(); } else $('ob-learn-go').onclick = learnOpen;
+    if (!d) { $('ob-go').onclick = start; prog(); if (window.Resume) Resume.button($('ob-go'), 'naming', 'Start naming', function () { N = nfresh(); gate(); }, 'Continue naming'); }
+    else { $('ob-learn-go').onclick = learnOpen; if (window.Resume) Resume.button($('ob-learn-go'), 'learn', 'What do you want to learn?', function () { L = lfresh(); }, 'Continue: what you want to learn'); }
   }
 
   // ---------- 3. what you want to learn: more of this, less of that (tile + Roll, as in the extra questions) ----------
@@ -146,8 +156,8 @@
   var LQ = [['Arduino', 'Naming things'], ['Building my page', 'Sound and music'], ['Motion', 'Colours'], ['Coding', 'Circuits and wiring'], ['Robots and servos', 'Design and layout']];
   var LKEY = 'buildit-learn', L = null;
   function lfresh() { return { v: 1, i: 0, ans: LQ.map(function (p) { return { opts: p.slice(), pick: null }; }), sent: 0 }; }
-  async function lload() { L = lfresh(); try { var raw = localStorage.getItem(LKEY); if (raw) { var s = await BI.dec(JSON.parse(raw)); if (s && s.v === 1) L = s; } } catch (e) { localStorage.removeItem(LKEY); } }
-  async function lsave() { try { localStorage.setItem(LKEY, JSON.stringify(await BI.enc(L))); } catch (e) {} }
+  async function lload() { L = lfresh(); var r = window.Resume && await Resume.load('learn', 1, LQ.length); if (r && r.answers && r.answers.v === 1) { L = r.answers; L.i = r.pos; } }
+  async function lsave() { if (window.Resume) await Resume.save('learn', 1, L.i, LQ.length, L); }
   function lcard() {
     var c = $('ob-learn'); if (c) return c;
     c = document.createElement('section'); c.className = 'panel'; c.id = 'ob-learn'; c.hidden = true; c.setAttribute('aria-live', 'polite');
@@ -193,7 +203,8 @@
     var head = '[Answers · What I want to learn' + (L.sent ? ' · updated' : '') + ' · propose-only]', lines = L.ans.map(function (a, i) { return (i + 1) + '. ' + lline(a); });
     var st = $('ol-stat'); st.className = 'sendstat'; st.textContent = 'Sending your picks to ' + BI.host() + '…';
     var r = await BI.send(head + '\n' + lines.join('\n'), { kind: 'answers', part: 'learn' });
-    L.sent = Date.now(); L.i = 0; lsave();
+    L.sent = Date.now(); L.i = 0; if (window.Resume) Resume.clear('learn');   // finished: the record goes
+    gate();
     st.className = 'sendstat ' + (r === 'failed' ? 'bad' : 'ok'); st.textContent = r === 'failed' ? 'Couldn’t send yet (no connection?). It’s saved in the chat.' : '✓ Sent to ' + BI.host() + ' (encrypted). Nothing changes until ' + BI.host() + ' says yes.';
     setTimeout(lclose, sec(1) * 1000);
   }
@@ -204,7 +215,7 @@
     $('ob-learn').hidden = false; $('ol-stat').textContent = ''; lrender(); window.scrollTo(0, 0);
     if (window.Adapt) Adapt.note('learn', 'open');
   }
-  function lclose() { var c = $('ob-learn'); if (c) c.hidden = true; $('q-start').hidden = false; window.scrollTo(0, 0); }
+  function lclose() { var c = $('ob-learn'); if (c) c.hidden = true; $('q-start').hidden = false; gate(); window.scrollTo(0, 0); }
 
   function css() { if ($('ob-css')) return; var s = document.createElement('style'); s.id = 'ob-css';
     s.textContent = '.ob-gate{border:1px solid var(--ac);border-radius:var(--r);padding:14px;margin:12px 0;background:var(--sf2)}.ob-gate h2{margin:4px 0 6px}.ob-gate .btnrow{margin-top:8px}' +
@@ -212,7 +223,7 @@
     document.head.appendChild(s); }
   // the orb's own help text for each part comes from the same naming content (one source), so any drop on it can say it
   function parts() { if (!window.QuizOrb || !QuizOrb.part) return; ITEMS.forEach(function (it) { if (it.id.indexOf('p-') !== 0) QuizOrb.part(it.sel, it.x); }); }
-  function open() { if (!window.BI || !BI.ready()) return; css(); N = nload(); parts(); gate(); }
+  async function open() { if (!window.BI || !BI.ready()) return; css(); parts(); N = await nload(); gate(); }
   document.addEventListener('bi:open', open);
   document.addEventListener('bi:lock', function () { running = false; L = null; var c = $('ob-learn'); if (c) c.remove(); var g = $('ob-gate'); if (g) g.remove(); document.documentElement.classList.remove('ob-naming'); });
   window.Onboard = { done: done, start: start, learn: learnOpen, items: function () { return ITEMS.map(function (i) { return i.id; }); }, running: function () { return running; } };

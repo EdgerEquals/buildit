@@ -10,7 +10,7 @@
 (function () {
   'use strict';
   const C = window.SimmieCrypto;
-  const SKEY = 'buildit-key', PKEY = 'buildit-pending', QKEY = 'buildit-progress';   // own keys (own origin too)
+  const SKEY = 'buildit-key', PKEY = 'buildit-pending', QKEY = 'buildit-progress';   // own keys (own origin too); QKEY = old store, moved into Resume once
   const $ = (id) => document.getElementById(id);
   const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const Tiers = window.LoadTiers || { add: (n, f) => setTimeout(f, 0), prefetch: () => {} };
@@ -202,14 +202,42 @@
   const PARTS = [{ n: 1, name: 'About you', qs: PART1 }, { n: 2, name: 'Colours', qs: PART2 }, { n: 3, name: 'Pieces of ' + 'the dashboard', qs: PART3 }];
   const STEPS = []; PARTS.forEach((p) => p.qs.forEach((q, i) => STEPS.push({ part: p.n, idx: i, q })));
 
+  // ---- RESUME ON REFRESH (Kids Club standard, Danny 2026-10-25 16:03 AWST): ONE small on-device record per quiz,
+  // localStorage 'buildit.resume.<quiz id>' = { id, v (quiz version), pos (current question), len (quiz length), a (answers,
+  // encrypted with the page key) }. Saved on every answer or step. Continue reopens at exactly pos; a version mismatch maps
+  // pos as a ratio of the length (pos / len * new len). Finishing or Start over deletes it. No expiry, never sent, kept
+  // apart from the usage loop. Used by the extra questions here and by js/pieces.js / js/onboard.js through window.Resume.
+  const Resume = window.Resume = {
+    key: (id) => 'buildit.resume.' + id,
+    has: (id) => { try { return !!localStorage.getItem(Resume.key(id)); } catch (e) { return false; } },
+    async save(id, v, pos, len, answers) { if (!key) return; try { localStorage.setItem(Resume.key(id), JSON.stringify({ id, v, pos, len, a: await C.encryptJSON(key, answers) })); } catch (e) {} },
+    async load(id, v, len) {
+      try { const r = JSON.parse(localStorage.getItem(Resume.key(id)) || 'null'); if (!r || r.id !== id || !key) return null;
+        const same = r.v === v, pos = same ? r.pos : Math.max(0, Math.min(len - 1, Math.round(r.pos / Math.max(1, r.len) * len)));
+        return { pos, same, answers: await C.decryptJSON(key, r.a) };
+      } catch (e) { Resume.clear(id); return null; }
+    },
+    clear: (id) => { try { localStorage.removeItem(Resume.key(id)); } catch (e) {} },
+    // homepage: "Continue" in place of the start label while a record exists, with a small "Start over" beside it
+    button(btn, id, label, onOver, cont) {
+      if (!btn) return; let so = document.getElementById(btn.id + '-over'); const on = Resume.has(id);
+      btn.textContent = on ? (cont || 'Continue') : label;
+      if (on && !so) { so = document.createElement('button'); so.type = 'button'; so.id = btn.id + '-over'; so.className = 'btn ghost2 over'; so.textContent = 'Start over'; btn.insertAdjacentElement('afterend', so); }
+      if (so) { so.hidden = !on; so.disabled = btn.disabled; so.onclick = async () => { Resume.clear(id); if (onOver) await onOver(); Resume.button(btn, id, label, onOver, cont); }; }
+    }
+  };
+  const QV = 2;   // extra questions version (2 = roll pairs and directions)
   // progress: {qi, ans:{id:{pick, opts?, notes:[]}}, sent:{1:ts,...}, started}
   let S = null;
   function fresh() { return { qi: 0, ans: {}, sent: {}, started: false, v: 1 }; }
   async function loadProgress() {
     S = fresh();
-    try { const raw = localStorage.getItem(QKEY); if (raw) { const s = await C.decryptJSON(key, JSON.parse(raw)); if (s && s.v === 1) S = s; } } catch (e) { localStorage.removeItem(QKEY); }
+    const r = await Resume.load('extra', QV, STEPS.length);
+    if (r && r.answers && r.answers.v === 1) { S = r.answers; S.qi = r.pos; }
+    else try { const raw = localStorage.getItem(QKEY); if (raw) { const s = await C.decryptJSON(key, JSON.parse(raw)); if (s && s.v === 1) { S = s; if (S.started && S.qi < STEPS.length) await saveProgress(); } } localStorage.removeItem(QKEY); } catch (e) { localStorage.removeItem(QKEY); }   // one-time move from the old store
   }
-  async function saveProgress() { try { localStorage.setItem(QKEY, JSON.stringify(await C.encryptJSON(key, S))); } catch (e) {} }
+  async function saveProgress() { if (S.qi >= STEPS.length) return; await Resume.save('extra', QV, S.qi, STEPS.length, S); }
+  function goBtn() { Resume.button($('q-go'), 'extra', 'Extra questions', async () => { S = fresh(); quizStart(); }, 'Continue extra questions'); }
   const A = (q) => { const a = S.ans[q.id] = S.ans[q.id] || { pick: null, notes: [], opts: q.opts ? q.opts.map((o) => o.t) : null }; if (q.opts && !a.opts) { a.opts = q.opts.map((o) => o.t); a.pick = null; } return a; };   // older yes/no saves get the two directions
   function optsOf(q) {
     if (q.type === 'yn') return [O('Yes', '👍'), O('No', '👎')];
@@ -220,6 +248,7 @@
   const panels = ['q-start', 'q-quiz', 'q-break', 'q-done'];
   function panel(id) { panels.forEach((p) => { $(p).hidden = p !== id; }); }
   function quizStart() {
+    goBtn();
     if (S.started && S.qi > 0 && S.qi < STEPS.length) { $('q-resume').hidden = false; $('q-resume').textContent = 'You were up to question ' + (S.qi + 1) + ' of ' + STEPS.length + '. Start picks up from there.'; }
     else $('q-resume').hidden = true;
     if (S.started && S.qi >= STEPS.length) return done();
@@ -294,7 +323,7 @@
     return q.type === 'yn' ? (a.pick === 0 ? 'Yes' : 'No') : o[a.pick].t + ' (over ' + o[1 - a.pick].t + ')';
   }
   function done() {
-    panel('q-done');
+    panel('q-done'); Resume.clear('extra'); goBtn();   // finished: the record goes, the homepage says Extra questions again
     const ol = $('q-sum'); ol.innerHTML = '';
     PARTS.forEach((p) => {
       const h = document.createElement('li'), sub = document.createElement('ol'), ht = document.createElement('p'); ht.className = 'ph'; ht.textContent = 'Part ' + p.n + ' · ' + (p.n === 3 ? 'Pieces' : p.name);

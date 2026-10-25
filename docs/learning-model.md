@@ -108,3 +108,11 @@ away, or the caller leaves. Three callers, no grow code of their own:
   (Next, Back, finishing) settles it back. If the part isn't on screen, nothing happens.
 - **Spotlight:** `QuizOrb.spotlight(id, prompt)` = a drop with no bubble plus the orb's panel (the naming step, and the
   "Is this the change you want?" prompt).
+
+## Quiz resume on refresh
+
+Every quiz keeps one on-device record in `localStorage` under `buildit.resume.<id>`. The ids are `naming`, `learn`, `pieces` and `extra`. Each record holds `{id, v, pos, len, a}`, where `a` is the answers encrypted with the page key. The record is updated on every answer, never expires, is never sent, and is kept apart from the usage loop (`Adapt`).
+- While a record exists, the homepage button reads "Continue…" in place of the start label, with a small "Start over" beside it.
+- Finishing a quiz or pressing Start over clears its record.
+- If the quiz version changed, it resumes at the same relative position: `round(pos / len × new length)`. Ratios only.
+- The shared helper is `window.Resume` in js/app.js.
