@@ -303,9 +303,9 @@ html.lite *{animation-play-state:paused!important}
 .pz-term{display:inline-block;font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ac2);font-weight:700;margin-bottom:6px}
 .pz-opts{display:grid;gap:8px;margin:10px 0}
 .pz-opts button{text-align:left;border:2px solid var(--ln);background:var(--sf2);border-radius:12px;padding:10px 12px;font-size:.98rem}
-.pz-opts button.right{border-color:var(--ok)}.pz-opts button.wrong{border-color:var(--bad)}
+.pz-opts button.named{border-color:var(--ok)}.pz-opts button.met{border-color:var(--ac);border-style:dashed}
 .pz-fb{border-left:3px solid var(--ok);padding:6px 10px;margin:8px 0;background:rgba(127,209,168,.08);border-radius:0 8px 8px 0}
-.pz-fb.miss{border-left-color:var(--bad);background:rgba(255,155,115,.08)}
+.pz-fb.term{border-left-color:var(--ac);background:rgba(159,184,224,.1)}
 .pz-score{color:var(--ok);font-weight:700}
 .pz-prog{display:flex;gap:4px;margin:6px 0}.pz-prog i{flex:1;height:5px;border-radius:3px;background:var(--ln)}
 .pz-prog i.done{background:var(--ac)}.pz-prog i.now{background:var(--ac2)}

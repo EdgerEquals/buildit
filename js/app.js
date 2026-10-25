@@ -77,7 +77,8 @@
     await loadPending();
     // tier 1: the piece-by-piece questions (most important after unlock); tier 2 (idle, PHI^-2 apart, usage-ordered):
     // chat poll + live line, orbit emojis, the ratio pump; tier 3: DJ engine + zoom mark prefetch. DJ itself loads on tap.
-    if (!window.Pieces) { const sp = document.createElement('script'); sp.src = 'js/pieces.js?v=1'; sp.async = true; document.head.appendChild(sp); }
+    // the learner model and the quiz orb load with the questions (tier 1), in order: model, orb, then the questions
+    if (!window.Pieces) { ['js/learner.js?v=1', 'js/quiz-orb.js?v=1', 'js/pieces.js?v=2'].forEach((u) => { const sp = document.createElement('script'); sp.src = u; sp.async = false; document.head.appendChild(sp); }); }
     else document.dispatchEvent(new CustomEvent('bi:open'));
     Tiers.add(2, startChat, 'chat', false);
     if (Tiers.script) { Tiers.script('js/orbit.js?v=1', 2, null, 'orbit'); Tiers.script('js/ratio-pump.js?v=1', 2, { 'data-site': 'buildit', 'data-freq': '0.75' }, 'pump', false); }

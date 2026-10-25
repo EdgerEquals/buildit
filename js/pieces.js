@@ -1,7 +1,9 @@
 /* "Your page, piece by piece": for every piece already on screen, a card with the piece live, its real parameters
    (read from the same phi numbers the page runs on) and a Keep / Change choice for each one, then a short physics
    challenge on the terms behind it (multiple choice, true/false, explain it in your own words), with the right answer
-   explained. Each finished piece goes encrypted through the page's own send path (window.BI.send, kind:'answers') as a
+   explained as "here's the term for that" (never marked wrong). Name-this questions go through the quiz orb
+   (js/quiz-orb.js) with 2 / 3 / 5 / 10 options picked by the on-device learner model (js/learner.js, docs/learning-model.md).
+   Each finished piece goes encrypted through the page's own send path (window.BI.send, kind:'answers') as a
    PROPOSE-ONLY request: nothing picked here changes the page; it all waits for Danny's yes. Progress is kept encrypted
    in localStorage ('buildit-pieces'). Nothing personal in this file. */
 (function () {
@@ -205,7 +207,7 @@
     el.innerHTML = head(pc, S.i, 'physics challenge ' + (S.qi + 1) + ' of ' + pc.quiz.length) + '<span class="pz-term">' + esc(qz.t) + '</span><h3 class="pz-q">' + esc(qz.q) + '</h3><div id="pz-body"></div>' +
       '<div class="btnrow"><button type="button" class="btn bk" id="pz-qback">&larr; Back</button><button type="button" class="btn" id="pz-qnext" hidden>Next &rarr;</button></div>';
     var body = $('pz-body');
-    function feedback(ok, extra) { var f = document.createElement('div'); f.className = 'pz-fb' + (ok ? '' : ' miss'); f.innerHTML = '<b>' + (ok ? ['Spot on!', 'Nailed it!', 'Exactly right!'][S.qi % 3] : 'Good try, here\'s the trick:') + '</b> '; f.appendChild(document.createTextNode(qz.x + (extra || ''))); body.appendChild(f); $('pz-qnext').hidden = false; }
+    function feedback(ok, extra) { var f = document.createElement('div'); f.className = 'pz-fb' + (ok ? '' : ' term'); f.innerHTML = '<b>' + (ok ? ['Spot on!', 'Nailed it!', 'Exactly right!'][S.qi % 3] : 'Here\'s the term for that:') + '</b> '; f.appendChild(document.createTextNode(qz.x + (extra || ''))); body.appendChild(f); $('pz-qnext').hidden = false; }
     if (qz.open) {
       body.innerHTML = '<label class="sr" for="pz-open">Your answer</label><textarea id="pz-open" class="pz-note" rows="3" maxlength="600" placeholder="Type your explanation…"></textarea><div class="btnrow"><button type="button" class="btn send" id="pz-osend">Check it</button><button type="button" class="btn skip" id="pz-oskip">Skip</button></div>';
       if (prev && prev.text) $('pz-open').value = prev.text;
@@ -213,17 +215,28 @@
       $('pz-oskip').onclick = function () { R[S.qi] = { skipped: true }; save(); next(); };
       if (prev && prev.text) feedback(true);
     } else {
-      var opts = qz.tf ? ['True', 'False'] : qz.o, box = document.createElement('div'); box.className = 'pz-opts'; body.appendChild(box);
-      opts.forEach(function (o, k) {
+      // options come from the learner model (count 2/3/5/10 from the level, shuffled, kept once shown); older saves keep theirs
+      var B = prev && prev.opts ? { opts: prev.opts, a: prev.a } : prev && prev.pick != null ? { opts: qz.tf ? ['True', 'False'] : qz.o, a: qz.a }
+        : window.Learner ? Learner.build(qz, pc.id + ':' + S.qi) : { opts: qz.tf ? ['True', 'False'] : qz.o, a: qz.a };
+      if (!prev) { R[S.qi] = { opts: B.opts, a: B.a }; save(); }
+      var box = document.createElement('div'); box.className = 'pz-opts'; body.appendChild(box);
+      B.opts.forEach(function (o, k) {
         var b = document.createElement('button'); b.type = 'button'; b.textContent = o; box.appendChild(b);
-        b.onclick = function () { if (R[S.qi] != null && R[S.qi].pick != null) return; R[S.qi] = { pick: k, ok: k === qz.a }; save(); mark(); };
+        b.onclick = function () { choose(k); };
       });
-      function mark() { var r = R[S.qi]; box.querySelectorAll('button').forEach(function (b, k) { b.disabled = true; if (k === qz.a) b.classList.add('right'); else if (k === r.pick) b.classList.add('wrong'); }); feedback(r.ok); }
+      function choose(k) {
+        var r = R[S.qi]; if (r && r.pick != null) return;
+        R[S.qi] = { opts: B.opts, a: B.a, pick: k, ok: k === B.a }; save();
+        if (window.Learner) Learner.record(qz.t, k === B.a);
+        mark(); if (window.QuizOrb) QuizOrb.picked(k);
+      }
+      function mark() { var r = R[S.qi]; box.querySelectorAll('button').forEach(function (b, k) { b.disabled = true; if (k === B.a) b.classList.add('named'); else if (k === r.pick) b.classList.add('met'); }); feedback(r.ok); }
       if (prev && prev.pick != null) mark();
+      else if (window.QuizOrb) QuizOrb.ask({ term: qz.t, q: qz.q, opts: B.opts, a: B.a, explain: qz.x, bot: BI.bot(), onPick: choose, onTap: function (t) { if (window.Learner) Learner.tap(t); } });
     }
-    $('pz-qback').onclick = function () { if (S.qi > 0) { S.qi--; save(); renderQuiz(); } else { S.stage = 'params'; save(); renderParams(); } window.scrollTo(0, 0); };
+    $('pz-qback').onclick = function () { if (window.QuizOrb) QuizOrb.home(); if (S.qi > 0) { S.qi--; save(); renderQuiz(); } else { S.stage = 'params'; save(); renderParams(); } window.scrollTo(0, 0); };
     $('pz-qnext').onclick = next;
-    function next() { if (S.qi < pc.quiz.length - 1) { S.qi++; save(); renderQuiz(); } else finishPiece(); window.scrollTo(0, 0); }
+    function next() { if (window.QuizOrb) QuizOrb.home(); if (S.qi < pc.quiz.length - 1) { S.qi++; save(); renderQuiz(); } else finishPiece(); window.scrollTo(0, 0); }
   }
 
   function summary(pc) {
@@ -231,12 +244,13 @@
     pc.params.forEach(function (p) { lines.push('• ' + p.l + ' (now: ' + p.v + ') → ' + (a[p.id] || 'no answer')); });
     if (S.notes[pc.id]) lines.push('Note: ' + S.notes[pc.id]);
     pc.quiz.forEach(function (q, k) { var r = R[k]; if (q.open) { lines.push('Explain (' + q.t + '): ' + (r && r.text ? r.text : 'skipped')); return; } asked++; if (r && r.ok) right++; else miss.push(q.t); });
-    lines.push('Physics: ' + right + '/' + asked + ' right' + (miss.length ? ' (to go over: ' + miss.join(', ') + ')' : ''));
+    lines.push('Physics: ' + right + '/' + asked + ' named first time' + (miss.length ? ' (terms met: ' + miss.join(', ') + ')' : ''));
+    if (window.Learner) lines.push(Learner.summary());
     return { lines: lines, right: right, asked: asked };
   }
   async function finishPiece() {
     var pc = LIST[S.i], sm = summary(pc), el = $('pz');
-    el.innerHTML = head(pc, S.i, 'done') + '<h2>' + (sm.right === sm.asked ? 'Perfect score! 🎉' : 'Nice work!') + '</h2><p class="pz-score">Physics challenge: ' + sm.right + ' of ' + sm.asked + ' right.</p>' +
+    el.innerHTML = head(pc, S.i, 'done') + '<h2>' + (sm.right === sm.asked ? 'Every term named! 🎉' : 'Nice work! New terms unlocked.') + '</h2><p class="pz-score">Terms you named straight off: ' + sm.right + ' of ' + sm.asked + '.</p>' +
       '<p class="sendstat" id="pz-stat">Sending your picks to ' + esc(BI.host()) + '…</p><div class="btnrow"><button type="button" class="btn" id="pz-cont">' + (S.i < LIST.length - 1 ? 'Next piece &rarr;' : 'Finish') + '</button></div>';
     $('pz-cont').onclick = function () { if (S.i < LIST.length - 1) { S.i++; S.stage = 'params'; save(); renderParams(); } else { S.i = LIST.length; save(); renderDone(); } window.scrollTo(0, 0); };
     var head1 = '[Answers · Piece ' + (S.i + 1) + '/' + LIST.length + ' · ' + pc.name + (S.sent[pc.id] ? ' · updated' : '') + ' · propose-only]';
@@ -247,7 +261,7 @@
   function renderDone() {
     var el = $('pz'), tot = 0, ok = 0;
     LIST.forEach(function (pc) { var s = summary(pc); tot += s.asked; ok += s.right; });
-    el.innerHTML = '<h2>All pieces done! 🚀</h2><p class="pz-score">Physics: ' + ok + ' of ' + tot + ' right overall.</p><p class="pz-lead">' + esc(BI.host()) + ' has your picks for every piece and will say yes or no. You can go through any piece again, or ask ' + esc(BI.bot()) + ' something in the chat.</p>' +
+    el.innerHTML = '<h2>All pieces done! 🚀</h2><p class="pz-score">Terms named straight off: ' + ok + ' of ' + tot + ' overall.</p><p class="pz-lead">' + esc(BI.host()) + ' has your picks for every piece and will say yes or no. You can go through any piece again, or ask ' + esc(BI.bot()) + ' something in the chat.</p>' +
       '<div class="btnrow"><button type="button" class="btn" id="pz-again">Go through again</button><button type="button" class="btn ghost2" id="pz-home">Back to start</button></div>';
     $('pz-again').onclick = function () { S.i = 0; S.stage = 'params'; save(); renderParams(); };
     $('pz-home').onclick = function () { show(false); resume(); };
@@ -255,11 +269,11 @@
   function resume() { var r = $('pz-resume'); if (!r || !S) return; if (S.i > 0 && S.i < LIST.length) { r.hidden = false; r.textContent = 'You were up to piece ' + (S.i + 1) + ' of ' + LIST.length + '. Start picks up from there.'; } else r.hidden = true; }
   async function open() {
     if (!window.BI || !BI.ready()) return;
-    LIST = PIECES(); await load(); resume();
+    LIST = PIECES(); await load(); resume(); if (window.QuizOrb) QuizOrb.init();
     var go = $('pz-go'); go.onclick = function () { if (!LIST) LIST = PIECES(); LIST = PIECES(); show(true); if (S.i >= LIST.length) renderDone(); else if (S.stage === 'quiz') renderQuiz(); else renderParams(); };
   }
   document.addEventListener('bi:open', open);
-  document.addEventListener('bi:lock', function () { S = null; $('pz').hidden = true; $('pz').innerHTML = ''; });
+  document.addEventListener('bi:lock', function () { if (window.QuizOrb) QuizOrb.reset(); S = null; $('pz').hidden = true; $('pz').innerHTML = ''; });
   window.Pieces = { open: open, list: function () { return PIECES(); } };
   open();
 })();
