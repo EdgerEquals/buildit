@@ -139,3 +139,48 @@ The first time through asks only the **T0** questions: the first `ceil(n / PHI^2
 - This note shows at the end of the first build and on the dashboard: "You can come back any time and build more on your dashboard."
 
 **Interpretation of "the naming step stays required but light".** T0 for naming is every part you can see on the first page: header, avatar, page title, DJ pill, tab, lock button, orbit emojis, panel, quiz orb, footer, status light, tide line and Lite switch. Those 13 are all required, so every piece visible on the first page gets named. The properties (colour, size, speed, direction, see-through) are not parts you can point at on their own, so they move to Build more. That round is optional: it has a Later button and does not gate anything. If Danny meant T0 to be fewer than every visible part, the set to trim is `REQ` in js/onboard.js.
+
+## Golden-ratio dials, one closed loop (Kids Club core standard, 2026-10-25 20:02 AWST; preview)
+
+`js/dials.js` loads at tier 1 after unlock. It adds no library and no request, and it has no send path.
+
+**One dial shape.** A dial sits on the phi ladder: rung n is PHI^-n (1, 0.618, 0.382, 0.236, 0.146, 0.090 ...) or closed.
+Feedback moves it one rung per session, between the floor and ceiling the page owner sets. A push past them is counted as
+a proposal for the page owner and does not move the dial. What you see glides to the new rung (damped, time constant
+PHI^(3 + own step) s). Each move is logged on this device (`Dials.rollback()` undoes the latest).
+The floors, ceilings and start rungs sit in one marked block at the top of `js/dials.js` (`RANGE`).
+
+**One record.** The dial state and the pace reading live in the existing usage record (`buildit.adapt`, under `dl`, through
+`Adapt.slot`). There is no second store. It holds numbers: gaps in seconds, Back / Skip / roll / orb-drop rates per answer,
+a session count, rungs and the move log. Typed text, chat, passwords, names and places are not stored.
+The same record gives the level reading, `Dials.level()`:
+
+| Reading | From | Meaning |
+| --- | --- | --- |
+| `pace` | usual gap between taps | the rung of the page's own ladder that gap sits on |
+| `depth` | share of page parts used (`Adapt`) | how many load tiers are worth warming early |
+| `help` | Back + Skip + orb drops per answer | a rung; lower means more help is wanted |
+
+**Dial 1, information filter.** Live events stay in memory. Each rung up (live, session, long-term, ratio summary) takes the
+dial's share. If a session changed the reading, the dial opens a rung; if not, it closes one, on the kid's own return rhythm.
+The off-device gate is hard off (`GATE = false`). Opening it needs the page owner's rule 3 call first.
+
+**Dial 2, kid-pace retune range.** Today's pace against the kid's own usual pace, in phi steps (`z`), nudges animation speed
+(through `RatioPump.rate()`) and load-tier timing (`LoadTiers.nudge`) by half-width x tanh(z). The dial is that half-width.
+It opens a rung when the pace pushes its edge with no extra Back or Skip. It closes a rung when Back and Skip rise past
+PHI x the usual rate.
+
+**Dial 3, season pump.** Day length today, between this latitude's shortest and longest day, sets a season value from -1 to
++1. Surfaces lean toward the page's own warm colour (`--bad`) in long days and its own cool accent (`--ac`) in short ones,
+by season x the dial. Palette only. Lite switched on closes a rung; a session without Lite opens one back toward the start.
+Preview overrides: `?season=summer`, `?season=winter`, `?dials=1` (a small read-out of the rungs).
+
+**Latitude.** Worked out on the device and kept in memory. It is the coarse value from the encrypted config if the page
+owner adds one (`BI.lat()`, rounded to 5 degrees). Otherwise it is the hemisphere from the browser's time zone and a
+mid-latitude band. No place is in any public file.
+
+### Reference data (rule 11)
+
+NOAA Global Monitoring Laboratory, "General Solar Position Calculations" (gml.noaa.gov/grad/solcalc/solareqns.PDF): the
+fractional year, the solar declination series and its coefficients, and the sunrise and sunset zenith of 90.833 degrees.
+These are published external values, so they stay fixed; the season dial pumps on top of them.

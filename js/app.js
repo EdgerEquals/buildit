@@ -81,6 +81,8 @@
     if (!window.Pieces) { ['js/learner.js?v=3', 'js/quiz-orb.js?v=4', 'js/onboard.js?v=2', 'js/pathways.js?v=3', 'js/pieces.js?v=6'].forEach((u) => { const sp = document.createElement('script'); sp.src = u; sp.async = false; document.head.appendChild(sp); }); }
     else document.dispatchEvent(new CustomEvent('bi:open'));
     Tiers.add(2, startChat, 'chat', false);
+    // golden-ratio dials (Kids Club core standard): tier 1, after unlock; nothing before the password
+    if (Tiers.script && !window.Dials) Tiers.script('js/dials.js?v=1', 1, null, 'dials', false);
     if (Tiers.script) { Tiers.script('js/orbit.js?v=1', 2, null, 'orbit'); Tiers.script('js/ratio-pump.js?v=1', 2, { 'data-site': 'buildit', 'data-freq': '0.75' }, 'pump', false); }
     Tiers.add(3, () => { const l = document.createElement('link'); l.rel = 'prefetch'; l.href = 'js/autodj.js?v=1'; document.head.appendChild(l); }, 'prefetch autodj');
     Tiers.prefetch('img/mark-head.svg?v=1');   // tier 3: an extra-questions preview
@@ -89,6 +91,7 @@
   // ---- API for js/pieces.js (same key, same relay, same encrypted log; nothing new leaves the page) ----
   window.BI = {
     ready: () => !!key, host: () => HOST(), name: () => NAME(), bot: () => BOT(),
+    lat: () => (cfg && cfg.lat != null && isFinite(cfg.lat) ? +cfg.lat : null),   // coarse, only if Danny adds it to the encrypted config
     enc: (o) => C.encryptJSON(key, o), dec: (o) => C.decryptJSON(key, o),
     async send(text, extra) { const m = { id: newId(), ts: Date.now(), from: 'user', text, ...(extra || {}) }; addMsg(m, 'pending'); render(); await deliver(msgs.get(m.id)); return msgs.get(m.id).state; },
     state: (id) => (msgs.get(id) || {}).state

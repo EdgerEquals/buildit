@@ -7,7 +7,8 @@
    - Lite: Adapt.lite() / Adapt.setLite(on): the much lighter version of every rich view (html.lite). Default on for
      save-data / 2g connections.
    SHARED SCHEMA (one data, many faces), version 1:
-     { v:1, site:"buildit", parts:{ <partId>:{ open:n, tap:n, linger:s, last:ms } }, prefs:{ lite:bool } }
+     { v:1, site:"buildit", parts:{ <partId>:{ open:n, tap:n, linger:s, last:ms } }, prefs:{ lite:bool },
+       dl:{ golden-ratio dials + kid-pace reading, numbers only; see js/dials.js } }
    ADAPTER POINT: when the shared js/phi-adapt.js exists, load it BEFORE this file; if window.PhiAdapt is present every
    call below is forwarded to it (same method names), and this file only keeps the lite toggle. */
 (function () {
@@ -43,5 +44,7 @@
   }
   document.addEventListener('visibilitychange', function () { if (!document.hidden) return; Object.keys(seen).forEach(function (id) { note(id, 'linger', (Date.now() - seen[id]) / 1000); seen[id] = Date.now(); }); });
   window.Adapt = { schema: 1, note: note, weight: weight, order: order, lite: lite, setLite: setLite, watch: lingerWatch,
-    data: function () { return JSON.parse(JSON.stringify(D)); }, reset: function () { D = { v: 1, site: 'buildit', parts: {}, prefs: D.prefs }; save(); } };
+    data: function () { return JSON.parse(JSON.stringify(D)); },
+    // slot(name[, value]): a named part of THIS record for other on-device loops (js/dials.js keeps 'dl' here: no second store)
+    slot: function (k, v) { if (!/^[a-z]{1,8}$/.test(k) || k === 'parts' || k === 'prefs' || k === 'v') return null; if (v !== undefined) { D[k] = v; clearTimeout(dirty); try { localStorage.setItem(KEY, JSON.stringify(D)); } catch (e) {} } return D[k] == null ? null : JSON.parse(JSON.stringify(D[k])); }, reset: function () { D = { v: 1, site: 'buildit', parts: {}, prefs: D.prefs, dl: D.dl }; save(); } };
 })();

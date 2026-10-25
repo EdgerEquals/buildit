@@ -11,7 +11,8 @@
   'use strict';
   var PHI=1.6180339887,OWN=.25;
   try{var v=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--own-step'));if(isFinite(v))OWN=v;}catch(e){}
-  function ms(n){return Math.round(Math.pow(PHI,n+OWN)*1000);}
+  var NUDGE=0;   // Dial 2 (js/dials.js): kid-pace offset in phi steps, kept inside Danny's range there
+  function ms(n){return Math.round(Math.pow(PHI,n+OWN+NUDGE)*1000);}
   var T={1:[],2:[],3:[]},done={1:0,2:0,3:0},log=[],last=0,t0=Date.now();
   var ric=window.requestIdleCallback||function(f){return setTimeout(function(){f({timeRemaining:function(){return 8},didTimeout:false});},ms(-3));};
   function now(){return Date.now()-t0;}
@@ -38,6 +39,6 @@
       setTimeout(function(){ric(function(){quiet(function(){if(!lite())run(3);});},{timeout:ms(4)});},ms(3));}
     if(document.readyState==='complete')afterLoad();else addEventListener('load',afterLoad);
   }
-  window.LoadTiers={add:add,script:script,prefetch:prefetch,ms:ms,_keep:[],report:function(){return log.slice();}};
+  window.LoadTiers={add:add,script:script,prefetch:prefetch,ms:ms,nudge:function(d){NUDGE=isFinite(d)?+d:0;},_keep:[],report:function(){return log.slice();}};
   start();
 })();
