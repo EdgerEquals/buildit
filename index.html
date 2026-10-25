@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#0B1A33">
+<title>Private page</title>
+<link rel="icon" href="data:,">
+<!-- Private Build It page: chat + dashboard in one, behind the same password gate as the Simmie chat page
+     (PBKDF2 250k -> AES-GCM; js/crypto.js). Nothing personal is in this file: the name, title and every
+     answer live only in the encrypted config / log and on the page after the password. System fonts, no web fonts. -->
+<link rel="stylesheet" href="css/style.css?v=1">
+<script src="js/load-tiers.js?v=1"></script>
+</head>
+<body>
+<main id="gate">
+  <section id="screen-loading" class="screen card center"><p>Loading…</p></section>
+  <section id="screen-notready" class="screen card center" hidden>
+    <h1 class="gtitle">Private page</h1>
+    <p>This page isn't set up yet. Check back soon.</p>
+  </section>
+  <section id="screen-login" class="screen card" hidden>
+    <h1 class="gtitle">Private page</h1>
+    <p class="muted">Type the password to open your page.</p>
+    <form id="login-form" autocomplete="off">
+      <label for="pw">Password</label>
+      <div class="pw-row">
+        <input id="pw" type="password" autocomplete="off" required autocapitalize="none" autocorrect="off" spellcheck="false">
+        <button type="button" id="pw-toggle" class="ghost" aria-label="Show password">Show</button>
+      </div>
+      <p id="login-error" class="error" role="alert" hidden></p>
+      <button id="login-btn" class="btn" type="submit">Open</button>
+    </form>
+  </section>
+</main>
+
+<div id="screen-app" class="app" hidden>
+  <header class="head" id="head">
+    <div class="hc">
+      <span class="brand"><span class="bmark" aria-hidden="true"><i></i><i></i></span><span id="h-title" class="htitle">My page</span></span>
+      <div class="tabs" role="tablist" aria-label="Sections">
+        <button type="button" class="tab on" id="tab-q" aria-controls="view-q" aria-selected="true" role="tab">Questions</button>
+        <button type="button" class="tab" id="tab-c" aria-controls="view-c" aria-selected="false" role="tab">Chat<b class="dotn" id="chat-new" hidden></b></button>
+      </div>
+      <button type="button" id="lock-btn" class="lockbtn" aria-label="Lock this page" title="Lock this page">&#128274; Lock</button>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section id="view-q" class="view" role="tabpanel" aria-labelledby="tab-q">
+      <section class="panel" id="q-start">
+        <div class="leadrow"><img class="botav" src="img/bot-avatar.svg?v=1" width="56" height="56" alt="" aria-hidden="true" decoding="async"><h1 id="q-hello">Hey!</h1></div>
+        <p class="lead" id="q-lead"></p>
+        <ol class="parts"><li><b>About you</b> <span>yes or no, this or that</span></li><li><b>Colours</b> <span>pick one of two, or roll new ones</span></li><li><b>Pieces</b> <span>bits from <span data-host>Danny</span>&rsquo;s page: yes or no</span></li></ol>
+        <button class="btn big" id="q-go">Start</button>
+        <p class="resume" id="q-resume" hidden></p>
+      </section>
+
+      <section class="panel" id="q-quiz" hidden aria-live="polite">
+        <p class="phase" id="q-phase"></p>
+        <div class="dots" id="q-dots" aria-hidden="true"></div>
+        <p class="count" id="q-count"></p>
+        <h2 class="qtext" id="q-text"></h2>
+        <div class="prev" id="q-prev" hidden></div>
+        <p class="pdesc" id="q-desc" hidden></p>
+        <div class="choices" id="q-choices">
+          <div class="choice"><button type="button" class="tile" id="t0"></button><button type="button" class="btn roll" data-i="0">&#x1F3B2; Roll</button></div>
+          <div class="choice"><button type="button" class="tile" id="t1"></button><button type="button" class="btn roll" data-i="1">&#x1F3B2; Roll</button></div>
+        </div>
+        <div class="askbox">
+          <label for="q-note">Want to add something? (optional)</label>
+          <textarea id="q-note" maxlength="400" rows="2" placeholder="A question, an idea, or what you'd change…"></textarea>
+          <div class="btnrow"><button type="button" class="btn bk" id="q-back">&larr; Back</button><button type="button" class="btn send" id="q-addnote">Add note</button><button type="button" class="btn skip" id="q-skip">Skip</button></div>
+          <span class="saved" id="q-saved" role="status"></span>
+          <ul class="notes" id="q-notes"></ul>
+        </div>
+      </section>
+
+      <section class="panel" id="q-break" hidden>
+        <h2 id="q-break-h">Nice one!</h2>
+        <p id="q-break-p"></p>
+        <p class="sendstat" id="q-break-s" role="status"></p>
+        <button class="btn big" id="q-break-go">Keep going</button>
+      </section>
+
+      <section class="panel" id="q-done" hidden>
+        <h2>All done. Thanks!</h2>
+        <p class="lead">Here&rsquo;s what you picked. It&rsquo;s been sent to <span data-host>Danny</span>, and you can change anything by going again.</p>
+        <p class="sendstat" id="q-done-s" role="status"></p>
+        <ol class="sumlist" id="q-sum"></ol>
+        <div class="btnrow"><button class="btn" id="q-again">Go again</button><button class="btn ghost2" id="q-tochat">Open the chat</button></div>
+      </section>
+    </section>
+
+    <section id="view-c" class="view" role="tabpanel" aria-labelledby="tab-c" hidden>
+      <div class="chatbox">
+        <div class="botbar"><span class="bn"><img class="botav sm" src="img/bot-avatar.svg?v=1" width="28" height="28" alt="" aria-hidden="true" decoding="async"><span class="botname" id="bot-name">Bot</span></span><button type="button" class="renbtn" id="ren-btn" aria-expanded="false" aria-controls="ren-form">&#9998; Rename</button></div>
+        <form id="ren-form" class="renform" hidden autocomplete="off">
+          <label for="ren-in">New name for your bot</label>
+          <div class="renrow"><input id="ren-in" type="text" maxlength="40" required spellcheck="false"><button class="btn" type="submit">Save</button></div>
+          <p class="renmsg" id="ren-msg" role="status"></p>
+        </form>
+        <div id="log" class="log" aria-live="polite" aria-label="Messages"></div>
+        <div id="typing" class="typing" hidden><span class="tdots"><i></i><i></i><i></i></span> <span id="typing-text">Waiting for a reply…</span></div>
+        <form id="send-form" class="sendrow" autocomplete="off">
+          <label for="msg" class="sr">Message</label>
+          <textarea id="msg" rows="1" maxlength="1500" placeholder="Type a message…" enterkeyhint="send"></textarea>
+          <button class="btn" id="send-btn" type="submit">Send</button>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot" id="foot">
+    <div class="hc"><img class="botav xs" src="img/bot-avatar.svg?v=1" width="22" height="22" alt="" aria-hidden="true" decoding="async"><span class="led" id="f-led" aria-hidden="true"></span><span id="f-stat">Private &middot; encrypted</span><span class="fsep" aria-hidden="true">&middot;</span><span id="f-credit">Made with help from Simmie</span></div>
+  </footer>
+</div>
+<script src="js/crypto.js?v=4"></script>
+<script src="js/app.js?v=1" defer></script>
+</body>
+</html>

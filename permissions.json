@@ -1,0 +1,5 @@
+{
+  "_doc": "Edit permissions for this page. ONE setting: edit_mode. 'propose-only' = the user can ask for changes, nothing they ask changes anything; each ask (and each answer set from the questions) goes to a private queue for Danny's yes (chat.py propose / proposals). 'allow-listed' = only items in allowed_without_danny may be done without Danny. Unknown values fall back to propose-only. Changing this needs Danny's yes.",
+  "edit_mode": "propose-only",
+  "allowed_without_danny": []
+}
