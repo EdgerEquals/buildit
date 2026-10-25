@@ -58,7 +58,7 @@ LOG_FILE = os.path.join(STATE_DIR, 'relay.log')
 IGNORE_FILE = os.path.join(STATE_DIR, 'ignore.json')   # ["id", ...] never (re)ingest / forward
 STAGED_FILE = os.path.join(STATE_DIR, 'staged.enc.json')  # their ingested-but-not-yet-committed msgs (encrypted, 0600)
 TEST_PREFIX = 'TEST from setup'
-ITER = 250000
+ITER = 600000  # raised 2026-10-25 to partly offset short passwords; the page reads kdf.iter from config.enc.json
 
 
 def die(msg, code=1):

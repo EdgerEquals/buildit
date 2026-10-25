@@ -15,7 +15,8 @@ if not C.PROFILE.get('password_env'): C.die('missing ' + os.path.join(C.STATE_DI
 PW = (C.secret(C.PW_ENV + '_NEW', required=False) or C.secret(C.PW_ENV, required=False)
       or (C.PW_FALLBACK_ENV and C.secret(C.PW_FALLBACK_ENV, required=False)))
 if not PW: C.die('missing env: ' + C.PW_ENV + ' (nothing written)')
-if len(PW) < 10: C.die('the page password is shorter than 10 characters; use a longer one (nothing written)')
+# short passwords allowed by owner decision 2026-10-25; weaker against offline guessing
+if len(PW) < 4: C.die('the page password is shorter than 4 characters; use a longer one (nothing written)')
 cfg_path, log_path = os.path.join(HERE, 'config.enc.json'), os.path.join(HERE, 'log.enc.json')
 old = C.load_json(cfg_path); log = C.load_json(log_path, {'entries': []})
 salt = None
