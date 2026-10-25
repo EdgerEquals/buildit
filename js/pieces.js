@@ -141,27 +141,44 @@
   }
 
   // ---------- state ----------
-  var S = null, LIST = null;
-  function fresh() { return { v: 1, qrev: QREV, i: 0, stage: 'params', qi: 0, ans: {}, quiz: {}, notes: {}, sent: {} }; }
+  // LIGHT FIRST BUILD (Kids Club standard): the first time through asks only each piece's T0 parts, the first
+  // ceil(n / PHI^2) of its n parts (a ratio, highest priority first, as listed), all skippable, no Arduino challenges.
+  // Everything else (the later parts and the Arduino challenges) waits in "Build more" on the dashboard (mode 'more').
+  // Parts not asked are sent as they are now (or as he answered before). Each mode has its own resume record.
+  var S = null, LIST = null, MODE = 'first', ST = { first: null, more: null };
+  var T0n = function (pc) { return Math.ceil(pc.params.length / PHI / PHI); };
+  function ps(pc) { return MODE === 'first' ? pc.params.slice(0, T0n(pc)) : pc.params.slice(T0n(pc)); }
+  function qs(pc) { return MODE === 'first' ? [] : pc.quiz; }
+  function rid() { return MODE === 'first' ? 'pieces' : 'more'; }
+  function mkList() { var all = PIECES(); return MODE === 'first' ? all : all.filter(function (pc) { return ps(pc).length || pc.quiz.length; }); }
+  function use(m) { if (MODE !== m || !LIST) { MODE = m; LIST = mkList(); } S = ST[m]; }
+  function fresh() { var f = { v: 1, qrev: QREV, i: 0, stage: 'params', qi: 0, ans: {}, quiz: {}, notes: {}, sent: {} };
+    if (MODE === 'more' && ST.first) { f.ans = JSON.parse(JSON.stringify(ST.first.ans || {})); f.notes = JSON.parse(JSON.stringify(ST.first.notes || {})); }   // keeps his earlier answers
+    return f; }
+  // pieces he already sent (before this version) count as done the first time through
+  function nextI(i) { while (MODE === 'first' && i < LIST.length && S.sent[LIST[i].id]) i++; return i; }
   // resume on refresh (window.Resume, js/app.js): ONE record 'pieces'; pos = the flat step (each piece's card, then its
   // challenges), so a changed quiz maps to the same relative point. The old 'buildit-pieces' store moves in once.
-  function flatLen() { return LIST.reduce(function (n, pc) { return n + 1 + pc.quiz.length; }, 0); }
-  function flatPos() { var n = 0; for (var k = 0; k < Math.min(S.i, LIST.length); k++) n += 1 + LIST[k].quiz.length; return S.i >= LIST.length ? flatLen() : n + (S.stage === 'quiz' ? 1 + S.qi : 0); }
-  function fromPos(pos) { for (var k = 0; k < LIST.length; k++) { var w = 1 + LIST[k].quiz.length; if (pos < w) { S.i = k; S.stage = pos ? 'quiz' : 'params'; S.qi = Math.max(0, pos - 1); return; } pos -= w; } S.i = LIST.length - 1; S.stage = 'params'; S.qi = 0; }
+  function flatLen() { return LIST.reduce(function (n, pc) { return n + 1 + qs(pc).length; }, 0); }
+  function flatPos() { var n = 0; for (var k = 0; k < Math.min(S.i, LIST.length); k++) n += 1 + qs(LIST[k]).length; return S.i >= LIST.length ? flatLen() : n + (S.stage === 'quiz' ? 1 + S.qi : 0); }
+  function fromPos(pos) { for (var k = 0; k < LIST.length; k++) { var w = 1 + qs(LIST[k]).length; if (pos < w) { S.i = k; S.stage = pos ? 'quiz' : 'params'; S.qi = Math.max(0, pos - 1); return; } pos -= w; } S.i = LIST.length - 1; S.stage = 'params'; S.qi = 0; }
   async function load() {
-    S = fresh(); var R = window.Resume, r = R && await R.load('pieces', QREV, flatLen());
+    S = fresh(); var R = window.Resume, r = R && await R.load(rid(), QREV, flatLen());
     if (r && r.answers && r.answers.v === 1) { S = r.answers; if (!r.same) { S.quiz = {}; S.qrev = QREV; fromPos(r.pos); } }
-    else { try { var raw = localStorage.getItem(QK); if (raw) { var s = await BI.dec(JSON.parse(raw)); if (s && s.v === 1) S = s; } } catch (e) {} localStorage.removeItem(QK);
+    else if (MODE === 'first') { try { var raw = localStorage.getItem(QK); if (raw) { var s = await BI.dec(JSON.parse(raw)); if (s && s.v === 1) S = s; } } catch (e) {} localStorage.removeItem(QK);
       if (S.qrev !== QREV) { var ratio = S.i / Math.max(1, LIST.length); S.quiz = {}; S.qrev = QREV; if (S.stage === 'quiz') { S.stage = 'params'; S.qi = 0; } if (S.i < LIST.length) S.i = Math.round(ratio * LIST.length); }
-      if (S.i > 0 || Object.keys(S.ans).length) save(); }
+      S.i = nextI(S.i); if (S.i > 0 || Object.keys(S.ans).length) save(); }
+    ST[MODE] = S;
   }
-  async function save() { if (!S || !LIST) return; if (S.i >= LIST.length) { if (window.Resume) Resume.clear('pieces'); return; } if (window.Resume) await Resume.save('pieces', QREV, flatPos(), flatLen(), S); }
-  function goBtn() { if (window.Resume) Resume.button($('pz-go'), 'pieces', 'Start', async function () { S = fresh(); resume(); }); }
+  async function save() { if (!S || !LIST) return; if (S.i >= LIST.length) { if (window.Resume) Resume.clear(rid()); return; } if (window.Resume) await Resume.save(rid(), QREV, flatPos(), flatLen(), S); }
+  function goBtn() { if (!window.Resume) return; var m = MODE; use('first'); Resume.button($('pz-go'), 'pieces', 'Start', async function () { use('first'); S = ST.first = fresh(); resume(); }); use(m); }
+  function moreBtn(btn) { if (!window.Resume || !btn) return; Resume.button(btn, 'more', 'More about each piece', async function () { var m = MODE; use('more'); S = ST.more = fresh(); use(m); }, 'Continue: more about each piece'); }
+  function advance() { S.i = nextI(S.i + 1); S.stage = 'params'; S.qi = 0; save(); if (S.i >= LIST.length) renderDone(); else renderParams(); window.scrollTo(0, 0); }
   function show(on) { if (!on) undrop();
     ['q-start', 'q-quiz', 'q-break', 'q-done'].forEach(function (p) { if (on) $(p).hidden = true; }); $('pz').hidden = !on; if (!on) $('q-start').hidden = false; window.scrollTo(0, 0); }
 
   function prog(i) { var h = '<div class="pz-prog" aria-hidden="true">'; for (var k = 0; k < LIST.length; k++) h += '<i class="' + (k < i ? 'done' : k === i ? 'now' : '') + '"></i>'; return h + '</div>'; }
-  function head(pc, i, sub) { return '<p class="phase">Piece ' + (i + 1) + ' of ' + LIST.length + ' · ' + sub + '</p>' + prog(i) + '<div class="pz-head"><span style="font-size:1.6rem" aria-hidden="true">' + pc.icon + '</span><h2>' + esc(pc.name) + '</h2></div>'; }
+  function head(pc, i, sub) { return '<p class="phase">' + (MODE === 'more' ? 'Build more · ' : '') + 'Piece ' + (i + 1) + ' of ' + LIST.length + ' · ' + sub + '</p>' + prog(i) + '<div class="pz-head"><span style="font-size:1.6rem" aria-hidden="true">' + pc.icon + '</span><h2>' + esc(pc.name) + '</h2></div>'; }
 
   // auto help-orb drop (Kids Club standard): a piece about a background parameter with a visible part does a virtual drop
   // of the orb on that part (QuizOrb.drop: the orb's own grow + help bubble); leaving the piece settles it back.
@@ -170,12 +187,12 @@
   function renderParams() {
     var pc = LIST[S.i], el = $('pz'), a = S.ans[pc.id] = S.ans[pc.id] || {};
     el.innerHTML = head(pc, S.i, 'which way should it go?') + '<div class="pz-demo" id="pz-demo"></div><p class="pz-lead">' + esc(pc.lead) + '</p>' +
-      '<p class="pz-lead"><b>For each part: which way do you love most, and which is not really you?</b> Roll each box until it feels right, then Lock it in (or press Enter). Leave a part alone and it stays as it is. Nothing changes straight away: your picks go to ' + esc(BI.host()) + ', who says yes or no.</p><ul class="pz-params" id="pz-params"></ul>' +
+      (MODE === 'more' && !ps(pc).length ? '<p class="pz-lead">The parts of this piece are all picked. Next is its Arduino challenge.</p>' : '<p class="pz-lead"><b>For each part: which way do you love most, and which is not really you?</b> Roll each box until it feels right, then Lock it in (or press Enter). Leave a part alone and it stays as it is. Nothing changes straight away: your picks go to ' + esc(BI.host()) + ', who says yes or no.</p>') + '<ul class="pz-params" id="pz-params"></ul>' +
       '<label class="sr" for="pz-note">Anything else about this piece?</label><textarea id="pz-note" class="pz-note" rows="2" maxlength="400" placeholder="Anything else about this piece? (optional)"></textarea>' +
-      '<div class="btnrow"><button type="button" class="btn bk" id="pz-back">&larr; Back</button><button type="button" class="btn" id="pz-next">' + (pc.quiz.length ? 'Arduino challenge &rarr;' : 'Done with this piece &rarr;') + '</button></div>';
+      '<div class="btnrow"><button type="button" class="btn bk" id="pz-back">&larr; Back</button>' + (MODE === 'first' ? '<button type="button" class="btn skip" id="pz-skip">Skip this piece</button>' : '') + '<button type="button" class="btn" id="pz-next">' + (qs(pc).length ? 'Arduino challenge &rarr;' : 'Done with this piece &rarr;') + '</button></div>';
     var d = $('pz-demo'), dh = pc.demo(d); if (dh) d.innerHTML = dh;
     var ul = $('pz-params');
-    pc.params.forEach(function (p) {
+    ps(pc).forEach(function (p) {
       var li = document.createElement('li'); li.className = 'pz-p';
       li.innerHTML = '<div class="pl"><b>' + esc(p.l) + '</b></div><span class="pv">' + esc(p.v) + '</span>' + (p.h ? '<span class="ph">' + esc(p.h) + '</span>' : '') + (p.ar ? '<span class="ph ar"><b>Arduino:</b> ' + esc(p.ar) + '</span>' : '') + '<div class="pz-ch" role="group" aria-label="' + esc(p.l) + '"></div>';
       var ch = li.querySelector('.pz-ch'), cur = a[p.id], ways = document.createElement('div'); ch.appendChild(ways);
@@ -194,7 +211,8 @@
     $('pz-note').oninput = function () { S.notes[pc.id] = $('pz-note').value.slice(0, 400); save(); };
     $('pz-back').disabled = S.i === 0;
     $('pz-back').onclick = function () { if (S.i > 0) { S.i--; S.stage = 'params'; save(); renderParams(); window.scrollTo(0, 0); } };
-    $('pz-next').onclick = function () { if (!pc.quiz.length) { finishPiece(); window.scrollTo(0, 0); return; } S.stage = 'quiz'; S.qi = 0; save(); renderQuiz(); window.scrollTo(0, 0); };
+    if ($('pz-skip')) $('pz-skip').onclick = advance;   // skip the whole piece: it stays as it is
+    $('pz-next').onclick = function () { if (!qs(pc).length) { finishPiece(); window.scrollTo(0, 0); return; } S.stage = 'quiz'; S.qi = 0; save(); renderQuiz(); window.scrollTo(0, 0); };
     if (window.Adapt) Adapt.note('piece-' + pc.id, 'open');
     undrop(); if (PART_EL[pc.id] && window.QuizOrb && QuizOrb.drop) QuizOrb.drop(PART_EL[pc.id]);
   }
@@ -202,7 +220,7 @@
   function renderQuiz() {
     undrop();
     var pc = LIST[S.i], qz = pc.quiz[S.qi], el = $('pz'), R = S.quiz[pc.id] = S.quiz[pc.id] || {}, prev = R[S.qi];
-    el.innerHTML = head(pc, S.i, 'Arduino challenge ' + (S.qi + 1) + ' of ' + pc.quiz.length) + '<span class="pz-term" id="pz-term">' + esc(qz.open || (prev && prev.pick != null) ? qz.t : qz.tf ? 'True or false' : 'Your turn') + '</span><h3 class="pz-q">' + esc(qz.q) + '</h3><div id="pz-body"></div>' +
+    el.innerHTML = head(pc, S.i, 'Arduino challenge ' + (S.qi + 1) + ' of ' + qs(pc).length) + '<span class="pz-term" id="pz-term">' + esc(qz.open || (prev && prev.pick != null) ? qz.t : qz.tf ? 'True or false' : 'Your turn') + '</span><h3 class="pz-q">' + esc(qz.q) + '</h3><div id="pz-body"></div>' +
       '<div class="btnrow"><button type="button" class="btn bk" id="pz-qback">&larr; Back</button><button type="button" class="btn" id="pz-qnext" hidden>Next &rarr;</button></div>';
     var body = $('pz-body');
     function feedback(ok, extra) { var f = document.createElement('div'); f.className = 'pz-fb' + (ok ? '' : ' term'); f.innerHTML = '<b>' + (ok ? 'Named it:' : 'Here\'s the term for that:') + '</b> '; f.appendChild(document.createTextNode(qz.x + (extra || ''))); body.appendChild(f); $('pz-qnext').hidden = false; }
@@ -234,14 +252,17 @@
     }
     $('pz-qback').onclick = function () { if (window.QuizOrb) QuizOrb.home(); if (S.qi > 0) { S.qi--; save(); renderQuiz(); } else { S.stage = 'params'; save(); renderParams(); } window.scrollTo(0, 0); };
     $('pz-qnext').onclick = next;
-    function next() { if (window.QuizOrb) QuizOrb.home(); if (S.qi < pc.quiz.length - 1) { S.qi++; save(); renderQuiz(); } else finishPiece(); window.scrollTo(0, 0); }
+    function next() { if (window.QuizOrb) QuizOrb.home(); if (S.qi < qs(pc).length - 1) { S.qi++; save(); renderQuiz(); } else finishPiece(); window.scrollTo(0, 0); }
   }
 
   function summary(pc) {
     var a = S.ans[pc.id] || {}, R = S.quiz[pc.id] || {}, lines = [], right = 0, asked = 0, miss = [];
-    pc.params.forEach(function (p) { lines.push('• ' + p.l + ' (now: ' + p.v + (p.d ? ' · ' + p.d : '') + ') → ' + (window.Pathways ? Pathways.label(a[p.id]) : (a[p.id] || 'no answer'))); });
+    // every part goes, so Danny has the whole piece: asked now, answered before, or kept as it is now (a default)
+    var now = ps(pc).map(function (p) { return p.id; });
+    pc.params.forEach(function (p) { var v = a[p.id] ? (window.Pathways ? Pathways.label(a[p.id]) : a[p.id]) + (now.indexOf(p.id) < 0 ? ' (from before)' : '') : now.indexOf(p.id) < 0 ? 'kept as it is now (default; not asked yet, in Build more)' : 'no answer';
+      lines.push('• ' + p.l + ' (now: ' + p.v + (p.d ? ' · ' + p.d : '') + ') → ' + v); });
     if (S.notes[pc.id]) lines.push('Note: ' + S.notes[pc.id]);
-    pc.quiz.forEach(function (q, k) { var r = R[k]; if (q.open) { lines.push('Explain (' + q.t + '): ' + (r && r.text ? r.text : 'skipped')); return; } asked++; if (r && r.ok) right++; else miss.push(q.t); });
+    qs(pc).forEach(function (q, k) { var r = R[k]; if (q.open) { lines.push('Explain (' + q.t + '): ' + (r && r.text ? r.text : 'skipped')); return; } asked++; if (r && r.ok) right++; else miss.push(q.t); });
     if (asked) lines.push('Arduino terms: ' + right + '/' + asked + ' named first time' + (miss.length ? ' (terms met: ' + miss.join(', ') + ')' : ''));
     if (window.Learner) lines.push(Learner.summary());
     return { lines: lines, right: right, asked: asked };
@@ -250,31 +271,39 @@
     undrop();
     var pc = LIST[S.i], sm = summary(pc), el = $('pz');
     el.innerHTML = head(pc, S.i, 'done') + '<h2>Piece done! 🎉</h2>' +
-      '<p class="sendstat" id="pz-stat">Sending your picks to ' + esc(BI.host()) + '…</p><div class="btnrow"><button type="button" class="btn bk" id="pz-dback">&larr; Back</button><button type="button" class="btn" id="pz-cont">' + (S.i < LIST.length - 1 ? 'Next piece &rarr;' : 'Finish') + '</button></div>';
+      '<p class="sendstat" id="pz-stat">Sending your picks to ' + esc(BI.host()) + '…</p><div class="btnrow"><button type="button" class="btn bk" id="pz-dback">&larr; Back</button><button type="button" class="btn" id="pz-cont">' + (nextI(S.i + 1) < LIST.length ? 'Next piece &rarr;' : 'Finish') + '</button></div>';
     $('pz-dback').onclick = function () { S.stage = 'params'; save(); renderParams(); window.scrollTo(0, 0); };   // back to this piece, picks kept
-    $('pz-cont').onclick = function () { if (S.i < LIST.length - 1) { S.i++; S.stage = 'params'; save(); renderParams(); } else { S.i = LIST.length; save(); renderDone(); } window.scrollTo(0, 0); };
-    var head1 = '[Answers · Piece ' + (S.i + 1) + '/' + LIST.length + ' · ' + pc.name + (S.sent[pc.id] ? ' · updated' : '') + ' · propose-only]';
+    $('pz-cont').onclick = advance;
+    var head1 = '[Answers · ' + (MODE === 'more' ? 'Build more · ' : '') + 'Piece ' + (S.i + 1) + '/' + LIST.length + ' · ' + pc.name + (S.sent[pc.id] ? ' · updated' : '') + ' · propose-only]';
     var st = await BI.send(head1 + '\n' + sm.lines.join('\n').slice(0, 1700), { kind: 'answers', part: pc.name });
     S.sent[pc.id] = Date.now(); save();
     var s = $('pz-stat'); if (s) { s.className = 'sendstat ' + (st === 'failed' ? 'bad' : 'ok'); s.textContent = st === 'failed' ? 'Couldn’t send yet (no connection?). It’s saved in the chat. Tap Try again there.' : '✓ Sent to ' + BI.host() + ' (encrypted). Nothing changes until ' + BI.host() + ' says yes.'; }
   }
   function renderDone() {
-    undrop(); if (window.Resume) Resume.clear('pieces');   // finished: the record goes
+    undrop(); if (window.Resume) Resume.clear(rid());   // finished: the record goes
     var el = $('pz'), tot = 0, ok = 0;
     LIST.forEach(function (pc) { var s = summary(pc); tot += s.asked; ok += s.right; });
-    el.innerHTML = '<h2>All pieces done! 🚀</h2><p class="pz-lead">' + esc(BI.host()) + ' has your picks for every piece and will say yes or no. You can go through any piece again, or ask ' + esc(BI.bot()) + ' something in the chat.</p>' +
+    el.innerHTML = (MODE === 'first' ? '<h2>Your first build is done! 🚀</h2>' : '<h2>That’s everything in Build more for now! 🚀</h2>') + '<p class="pz-lead">' + esc(BI.host()) + ' has your picks and will say yes or no. You can go through again, or ask ' + esc(BI.bot()) + ' something in the chat.</p>' +
+      '<p class="pz-lead bm-note"><b>You can come back any time and build more on your dashboard.</b></p>' +
       '<div class="btnrow"><button type="button" class="btn" id="pz-again">Go through again</button><button type="button" class="btn ghost2" id="pz-home">Back to start</button></div>';
-    $('pz-again').onclick = function () { S.i = 0; S.stage = 'params'; save(); renderParams(); };
-    $('pz-home').onclick = function () { show(false); resume(); };
+    $('pz-again').onclick = function () { S.i = 0; S.stage = 'params'; S.qi = 0; save(); renderParams(); };
+    $('pz-home').onclick = function () { show(false); resume(); if (window.BuildMore) BuildMore.refresh(); };
   }
-  function resume() { goBtn(); var r = $('pz-resume'); if (!r || !S) return; if (S.i > 0 && S.i < LIST.length) { r.hidden = false; r.textContent = 'You were up to piece ' + (S.i + 1) + ' of ' + LIST.length + '. Start picks up from there.'; } else r.hidden = true; }
+  function resume() { goBtn(); var m = MODE; use('first'); var r = $('pz-resume'); if (!r || !S) { use(m); return; } if (S.i > 0 && S.i < LIST.length) { r.hidden = false; r.textContent = 'You were up to piece ' + (S.i + 1) + ' of ' + LIST.length + '. Continue picks up from there.'; } else r.hidden = true; use(m); }
   async function open() {
     if (!window.BI || !BI.ready()) return;
-    LIST = PIECES(); await load(); resume(); if (window.QuizOrb) QuizOrb.init();
-    var go = $('pz-go'); go.onclick = function () { if (window.Onboard && !Onboard.done()) { Onboard.start(); return; } if (!LIST) LIST = PIECES(); LIST = PIECES(); show(true); if (S.i >= LIST.length) renderDone(); else if (S.stage === 'quiz') renderQuiz(); else renderParams(); };
+    ST = { first: null, more: null }; MODE = ''; use('first'); await load(); MODE = ''; use('more'); await load(); MODE = ''; use('first'); resume(); if (window.QuizOrb) QuizOrb.init();
+    $('pz-go').onclick = function () { go('first'); };
+  }
+  function go(m) {
+    if (window.Onboard && !Onboard.done()) { Onboard.start(); return; }
+    MODE = ''; use(m); if (!S || (m === 'more' && window.Resume && !Resume.has('more'))) S = ST[m] = fresh(); show(true);   // Build more starts from his latest answers
+    if (S.i >= LIST.length) { S.i = 0; S.stage = 'params'; S.qi = 0; }
+    if (S.stage === 'quiz' && qs(LIST[S.i]).length) renderQuiz(); else renderParams();
   }
   document.addEventListener('bi:open', open);
   document.addEventListener('bi:lock', function () { undrop(); if (window.QuizOrb) QuizOrb.reset(); S = null; $('pz').hidden = true; $('pz').innerHTML = ''; });
-  window.Pieces = { open: open, list: function () { return PIECES(); } };
+  window.Pieces = { open: open, list: function () { return PIECES(); }, more: function () { go('more'); }, moreBtn: moreBtn,
+    moreLeft: function () { var m = MODE; MODE = ''; use('more'); var n = LIST.length; MODE = ''; use(m || 'first'); return n; } };
   open();
 })();

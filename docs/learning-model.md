@@ -26,7 +26,8 @@ appears, a short message in the bot's voice.
 | File | Role |
 | --- | --- |
 | `js/pieces.js` | Content: each piece's parts in plain words (`v`), the real numbers behind them (`d`, sent only to the page owner inside the encrypted answers, never shown), the two directions per part (`js/pathways.js`) and an Arduino challenge where there is one. `ar`: how you would build it on an Arduino. |
-| `js/onboard.js` | The exhaling cascade (`window.Exhale`), the required naming step and the "what you want to learn" prompt. |
+| `js/onboard.js` | The exhaling cascade (`window.Exhale`), the required naming step and the "what you want to learn" prompt. Also the optional Build more rounds for both, and the loader for `js/buildmore.js`. |
+| `js/buildmore.js` | The optional Build more area on the dashboard. Loads on tap or in an idle slot. |
 | `js/learner.js` | The learner model and the lingo bank (term to depth). Builds options and records results. |
 | `js/quiz-orb.js` | The view: the quiz orb that brings a name-this question to the centre of the screen and glides home after. Built on the help orb architecture (single instance, home dock, one dialog with focus trap, spring home). `QuizOrb.spotlight(elementId, prompt)` is the reusable point-and-enlarge piece. |
 
@@ -70,7 +71,7 @@ a first gap, then each gap x PHI, until the next beat would pass the page's long
 ## The naming step (required)
 
 Learning what everything on the page is called is **not optional**. It is the first part of onboarding, it can't be skipped,
-closed or Escaped, and until it is done the Keep/Change pieces ("which way should it go?") and the extra questions stay
+closed or Escaped, and until it is done the pieces ("which way should it go?"), Build more and the extra questions stay
 locked. The page itself, chat, DJ and Lite still work.
 
 - The quiz orb points at each part with `QuizOrb.spotlight(id, spec)`: that part grows (by `1 + (PHI-1) * orbSize/partSize`)
@@ -79,7 +80,8 @@ locked. The page itself, chat, DJ and Lite still work.
 - Feedback: "Named it" or "Here's the name for that". Nothing is right or wrong.
 - A part met but not named comes back later in the queue, `round(n / PHI^4 * PHI^k)` questions later (k = times met), so
   the re-asks exhale. The step ends once every part has been named.
-- Storage: localStorage `buildit.naming` (part ids, counts, timestamps; no text), on this device only. Never sent.
+- Storage: the finished mark is in localStorage `buildit.naming` (`{v, done}`). Half-done progress is the quiz's resume record `naming` (see "Quiz resume on refresh"). Both are on this device only and never sent.
+- Light first build: the required step asks the 13 page parts only (see below). The 5 properties are the optional "Name more" round in Build more.
 - `QuizOrb.spotlight(id, "Is this the change you want?", { choices, onPick })` is the same piece, ready for the after-change prompt.
 
 **Exception to rule 6.** Rule 6 (free-wheel) says nothing hard-gates. This naming gate is an explicit exception made by
@@ -116,3 +118,24 @@ Every quiz keeps one on-device record in `localStorage` under `buildit.resume.<i
 - Finishing a quiz or pressing Start over clears its record.
 - If the quiz version changed, it resumes at the same relative position: `round(pos / len × new length)`. Ratios only.
 - The shared helper is `window.Resume` in js/app.js.
+
+## Light first build and Build more (Danny, 2026-10-25 16:05 AWST)
+
+The first time through asks only the **T0** questions: the first `ceil(n / PHI^2)` of each set (about 0.382, a ratio, never a fixed number), highest priority first, in the order listed. All of them are skippable.
+
+| Set | First time (T0) | Waits in Build more |
+|---|---|---|
+| Each piece's parts | first `ceil(n / PHI^2)`, e.g. 4 of the bot's 9 | the later parts |
+| Arduino challenges | none | all |
+| What you want to learn | `ceil(5 / PHI^2)` = 2 questions | the other 3 |
+| Naming | the 13 page parts (required) | the 5 properties (optional) |
+| Extra questions | none | all |
+
+- Every part goes into each piece's encrypted answers: either asked now, answered before (marked "from before"), or "kept as it is now (default; not asked yet, in Build more)". That way Danny always has the whole piece.
+- There is a "Skip this piece" button on every piece the first time through.
+- Pieces he already sent count as done, and his existing answers are kept. The old `buildit-pieces` store moves into the `pieces` resume record once. Build more starts from his latest answers.
+- Build more is the optional area on the dashboard (the start panel). It has four rounds: more about each piece, name more, more of what you want to learn, and the extra questions. `js/buildmore.js` loads when he taps "Open Build more", or in an idle slot once naming is done.
+- Each round has its own resume record: `more`, `naming-more`, `learn-more`, `extra`. Each one gets Continue / Start over.
+- This note shows at the end of the first build and on the dashboard: "You can come back any time and build more on your dashboard."
+
+**Interpretation of "the naming step stays required but light".** T0 for naming is every part you can see on the first page: header, avatar, page title, DJ pill, tab, lock button, orbit emojis, panel, quiz orb, footer, status light, tide line and Lite switch. Those 13 are all required, so every piece visible on the first page gets named. The properties (colour, size, speed, direction, see-through) are not parts you can point at on their own, so they move to Build more. That round is optional: it has a Later button and does not gate anything. If Danny meant T0 to be fewer than every visible part, the set to trim is `REQ` in js/onboard.js.

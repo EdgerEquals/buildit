@@ -5,7 +5,7 @@
    2. NAMING STEP (required, Danny 2026-10-25 16:00 AWST): learning what every part of the page is called. The quiz orb
       points at each part (QuizOrb.spotlight: the part grows and glows), asks its name, and answers with "here's the name
       for that" (nothing right or wrong). No skip, no close, no Escape. A part not named yet comes back later in the queue,
-      spaced on the exhaling cascade (in questions). Until every part is named, the Keep / Change pieces and the extra
+      spaced on the exhaling cascade (in questions). Until every part is named, the pieces, Build more and the extra
       questions stay locked; the page itself, chat, DJ and Lite still work. This hard gate is an explicit exception to
       rule 6 (docs/learning-model.md). Progress is on this device only (localStorage 'buildit.naming': part ids and
       counts, no text).
@@ -79,63 +79,76 @@
     { id: 'p-see', sel: '.orb-layer', t: 'see-through', q: 'The emojis fade so you can see the page behind them. What is that called?', o: ['see-through', 'colour', 'size', 'speed'],
       x: 'See-through = how much you can see through something. Fully solid hides what is behind it.' }
   ];
-  var NKEY = 'buildit.naming', N = null, running = false;
+  // LIGHT FIRST BUILD: the required step names the page parts only (T0 = every part you can see on the first page).
+  // The properties (colour, size, speed, direction, see-through) wait in Build more: optional, with Later, own record.
+  var REQ = ITEMS.filter(function (it) { return it.id.indexOf('p-') !== 0; }), MORE = ITEMS.filter(function (it) { return it.id.indexOf('p-') === 0; });
+  var NKEY = 'buildit.naming', N = null, M = null, running = false, SES = null;
+  // one naming session: the set, its resume record, whether it is the required one, its state
+  function ses(req) { return req ? { set: REQ, rid: 'naming', req: true, st: function () { return N; } } : { set: MORE, rid: 'naming-more', req: false, st: function () { return M; } }; }
   function nfresh() { return { v: 1, named: {}, met: {}, q: [], done: 0 }; }
   // the finished mark stays in 'buildit.naming' ({v, done}); the half-done progress is the quiz's resume record ('naming')
   async function nload() {
     var d = nfresh(); try { var m = JSON.parse(localStorage.getItem(NKEY) || 'null'); if (m && m.done) d.done = m.done; } catch (e) {}
-    var r = !d.done && window.Resume && await Resume.load('naming', 1, ITEMS.length);
+    var r = !d.done && window.Resume && await Resume.load('naming', 1, REQ.length);
     if (r && r.answers) { d.named = r.answers.named || {}; d.met = r.answers.met || {}; d.q = r.answers.q || []; }
     return d;
   }
   function nsave() {
     try { localStorage.setItem(NKEY, JSON.stringify({ v: 1, done: N.done || 0 })); } catch (e) {}
-    if (!window.Resume) return; if (N.done) Resume.clear('naming'); else Resume.save('naming', 1, namedCount(), ITEMS.length, { named: N.named, met: N.met, q: N.q });
+    if (!window.Resume) return; if (N.done) Resume.clear('naming'); else Resume.save('naming', 1, namedCount(ses(true)), REQ.length, { named: N.named, met: N.met, q: N.q });
   }
+  async function mload() { M = nfresh(); var r = window.Resume && await Resume.load('naming-more', 1, MORE.length); if (r && r.answers) { M.named = r.answers.named || {}; M.met = r.answers.met || {}; M.q = r.answers.q || []; } }
+  function msave() { if (!window.Resume) return; if (M.done) Resume.clear('naming-more'); else Resume.save('naming-more', 1, namedCount(ses(false)), MORE.length, { named: M.named, met: M.met, q: M.q }); }
+  function ssave(se) { if (se.req) nsave(); else msave(); }
   function item(id) { for (var i = 0; i < ITEMS.length; i++) if (ITEMS[i].id === id) return ITEMS[i]; return null; }
-  function namedCount() { return ITEMS.filter(function (it) { return N.named[it.id]; }).length; }
-  function done() { if (!N) return false; return !!N.done || ITEMS.every(function (it) { return N.named[it.id]; }); }
+  function namedCount(se) { se = se || ses(true); var st = se.st(); return se.set.filter(function (it) { return st.named[it.id]; }).length; }
+  function done() { if (!N) return false; return !!N.done || REQ.every(function (it) { return N.named[it.id]; }); }
   // where a met part comes back: the first gap is a ratio of the set (n / PHI^4), each later gap PHI times longer
-  var BASE = function () { return ITEMS.length / Math.pow(PHI, 4); };
-  function queue() {
-    var have = {}; N.q = N.q.filter(function (id) { if (!item(id) || N.named[id] || have[id]) return false; have[id] = 1; return true; });
-    ITEMS.forEach(function (it) { if (!N.named[it.id] && !have[it.id]) N.q.push(it.id); });
+  var BASE = function (se) { return se.set.length / Math.pow(PHI, 4); };
+  function queue(se) {
+    var st = se.st(), ids = se.set.map(function (it) { return it.id; }), have = {};
+    st.q = st.q.filter(function (id) { if (ids.indexOf(id) < 0 || st.named[id] || have[id]) return false; have[id] = 1; return true; });
+    se.set.forEach(function (it) { if (!st.named[it.id] && !have[it.id]) st.q.push(it.id); });
   }
-  function start() {
+  function start() { run(ses(true)); }
+  async function nameMore() { if (!done()) return start(); if (!M) await mload(); run(ses(false)); }
+  function run(se) {
     if (!window.QuizOrb || !window.BI || !BI.ready()) return;
-    queue();
-    if (!N.q.length) return finish();
+    SES = se; queue(se);
+    if (!se.st().q.length) return finish(se);
     running = true; document.documentElement.classList.add('ob-naming');
     $('view-q').hidden = false; $('view-c').hidden = true;   // the parts it points at are on the Questions view
-    QuizOrb.init(); QuizOrb.hold(true); askNext();
+    QuizOrb.init(); QuizOrb.hold(se.req); askNext(se);   // only the required step holds the orb (no Later)
   }
-  function askNext() {
-    queue(); if (!N.q.length) return finish();
-    var it = item(N.q[0]), seed = 'name:' + it.id + ':' + (N.met[it.id] || 0), nm = namedCount();
+  function askNext(se) {
+    queue(se); var N = se.st(); if (!N.q.length) return finish(se);
+    running = true; var it = item(N.q[0]), seed = 'name:' + it.id + ':' + (N.met[it.id] || 0), nm = namedCount(se);
     var B = window.Learner ? Learner.build({ t: it.t, o: it.o, a: 0 }, seed) : { opts: it.o.slice(), a: 0 };
     var el = document.getElementById(it.sel) || document.querySelector(it.sel), seen = el && (el.getClientRects().length > 0) && !el.closest('[hidden]');
-    var spec = { locked: true, term: it.t, label: 'Name it · ' + (nm + 1) + ' of ' + ITEMS.length, q: seen ? it.q : (it.gone || it.q), opts: B.opts, a: B.a, explain: it.x, bot: BI.bot(),
+    var spec = { locked: se.req, term: it.t, label: (se.req ? 'Name it · ' : 'Build more · name it · ') + (nm + 1) + ' of ' + se.set.length, q: seen ? it.q : (it.gone || it.q), opts: B.opts, a: B.a, explain: it.x, bot: BI.bot(),
       okLabel: 'Named it: ', metLabel: 'Here’s the name for that: ',
       onPick: function (k) {
         if (spec.picked != null) return; spec.picked = k; var ok = k === B.a;
         if (window.Learner) Learner.record(it.t, ok);
         N.q.shift();
         if (ok) N.named[it.id] = Date.now();
-        else { var m = N.met[it.id] = (N.met[it.id] || 0) + 1; N.q.splice(Math.min(N.q.length, Exhale.slot(BASE(), m - 1)), 0, it.id); }   // comes back later, exhaling
-        nsave(); prog(); if (window.Adapt) Adapt.note('naming', 'answer');
+        else { var m = N.met[it.id] = (N.met[it.id] || 0) + 1; N.q.splice(Math.min(N.q.length, Exhale.slot(BASE(se), m - 1)), 0, it.id); }   // comes back later, exhaling
+        ssave(se); if (se.req) prog(); if (window.Adapt) Adapt.note('naming', 'answer');
         if (spec.mark) spec.mark();
       },
       onTap: function (t) { if (window.Learner) Learner.tap(t); },
-      onDone: function () { askNext(); } };
+      onDone: function () { askNext(se); },
+      onHome: se.req ? null : function () { running = false; document.documentElement.classList.remove('ob-naming'); if (window.BuildMore) BuildMore.refresh(); } };
     QuizOrb.spotlight(seen ? it.sel : null, spec);
   }
-  function finish() {
-    running = false; N.done = N.done || Date.now(); nsave(); document.documentElement.classList.remove('ob-naming');
+  function finish(se) {
+    se = se || ses(true); var st = se.st();
+    running = false; SES = null; st.done = st.done || Date.now(); ssave(se); document.documentElement.classList.remove('ob-naming');
     if (window.QuizOrb) { QuizOrb.hold(false); QuizOrb.home(); }
-    gate(); learnOpen();
+    gate(); if (se.req) { bmIdle(); learnOpen(); } else if (window.BuildMore) BuildMore.refresh();
   }
   // ---- the gate on the start panel ----
-  function prog() { var p = $('ob-prog'); if (p) p.textContent = namedCount() + ' of ' + ITEMS.length + ' parts named'; }
+  function prog() { var p = $('ob-prog'); if (p) p.textContent = namedCount(ses(true)) + ' of ' + REQ.length + ' parts named'; }
   function gate() {
     var qs = $('q-start'); if (!qs) return;
     var g = $('ob-gate'), d = done();
@@ -143,10 +156,12 @@
     if (!d) g.innerHTML = '<p class="phase">Step 1 · everyone does this one</p><h2>Name every part of your page</h2>' +
       '<p class="pz-lead">To build your page, you need the names for its parts. The quiz orb points at each part, makes it bigger, and asks what it is called. The rest opens once every part has a name.</p>' +
       '<div class="btnrow"><button type="button" class="btn big" id="ob-go" data-use="naming">Start naming</button></div><p class="muted" id="ob-prog"></p>';
-    else g.innerHTML = '<div class="btnrow"><button type="button" class="btn ghost2" id="ob-learn-go" data-use="learn">What do you want to learn?</button></div>';
-    ['pz-go', 'q-go'].forEach(function (id) { var b = $(id); if (!b) return; b.disabled = !d; b.setAttribute('aria-disabled', String(!d)); b.title = d ? '' : 'Opens after step 1: naming the parts of your page'; });
+    else g.innerHTML = L0sent() ? '' : '<div class="btnrow"><button type="button" class="btn ghost2" id="ob-learn-go" data-use="learn">What do you want to learn?</button></div>';
+    g.hidden = d && L0sent();
+    ['pz-go', 'q-go', 'bm-go'].forEach(function (id) { var b = $(id); if (!b) return; b.disabled = !d; b.setAttribute('aria-disabled', String(!d)); b.title = d ? '' : 'Opens after step 1: naming the parts of your page'; });
     if (!d) { $('ob-go').onclick = start; prog(); if (window.Resume) Resume.button($('ob-go'), 'naming', 'Start naming', function () { N = nfresh(); gate(); }, 'Continue naming'); }
-    else { $('ob-learn-go').onclick = learnOpen; if (window.Resume) Resume.button($('ob-learn-go'), 'learn', 'What do you want to learn?', function () { L = lfresh(); }, 'Continue: what you want to learn'); }
+    if (window.BuildMore) BuildMore.refresh();
+    else if ($('ob-learn-go')) { $('ob-learn-go').onclick = learnOpen; if (window.Resume) Resume.button($('ob-learn-go'), 'learn', 'What do you want to learn?', function () { LR = RANGES.first; L = lfresh(); }, 'Continue: what you want to learn'); }
   }
 
   // ---------- 3. what you want to learn: more of this, less of that (tile + Roll, as in the extra questions) ----------
@@ -154,10 +169,14 @@
   var LPOOL = [T('Arduino', '🔌'), T('Naming things', '🏷️'), T('Building my page', '🛠️'), T('Sound and music', '🎵'), T('Motion', '🌀'), T('Colours', '🎨'),
     T('Coding', '💻'), T('Circuits and wiring', '⚡'), T('Robots and servos', '🤖'), T('Design and layout', '✏️'), T('LEDs and lights', '💡'), T('Sensors', '📡'), T('Making games', '🎮'), T('Writing my own code', '⌨️')];
   var LQ = [['Arduino', 'Naming things'], ['Building my page', 'Sound and music'], ['Motion', 'Colours'], ['Coding', 'Circuits and wiring'], ['Robots and servos', 'Design and layout']];
-  var LKEY = 'buildit-learn', L = null;
-  function lfresh() { return { v: 1, i: 0, ans: LQ.map(function (p) { return { opts: p.slice(), pick: null }; }), sent: 0 }; }
-  async function lload() { L = lfresh(); var r = window.Resume && await Resume.load('learn', 1, LQ.length); if (r && r.answers && r.answers.v === 1) { L = r.answers; L.i = r.pos; } }
-  async function lsave() { if (window.Resume) await Resume.save('learn', 1, L.i, LQ.length, L); }
+  // first time: the first ceil(n / PHI^2) questions (T0); the rest are the Build more round, each with its own record
+  var LT0 = Math.ceil(LQ.length / PHI / PHI), LR = null, L = null, LMK = 'buildit.learn';
+  var RANGES = { first: { from: 0, to: LT0, rid: 'learn' }, more: { from: LT0, to: LQ.length, rid: 'learn-more' } };
+  function L0sent() { try { var m = JSON.parse(localStorage.getItem(LMK) || 'null'); return !!(m && m.first); } catch (e) { return false; } }   // finished mark only, no answers
+  function lmark(k) { try { var m = JSON.parse(localStorage.getItem(LMK) || '{}') || {}; m[k] = Date.now(); localStorage.setItem(LMK, JSON.stringify(m)); } catch (e) {} }
+  function lfresh() { return { v: 1, i: LR ? LR.from : 0, ans: LQ.map(function (p) { return { opts: p.slice(), pick: null }; }), sent: 0 }; }
+  async function lload() { L = lfresh(); var r = window.Resume && await Resume.load(LR.rid, 1, LR.to - LR.from); if (r && r.answers && r.answers.v === 1) { L = r.answers; L.i = LR.from + r.pos; } }
+  async function lsave() { if (window.Resume) await Resume.save(LR.rid, 1, L.i - LR.from, LR.to - LR.from, L); }
   function lcard() {
     var c = $('ob-learn'); if (c) return c;
     c = document.createElement('section'); c.className = 'panel'; c.id = 'ob-learn'; c.hidden = true; c.setAttribute('aria-live', 'polite');
@@ -182,40 +201,43 @@
     var lock = function () { L.ans[L.i].pick = 'pair'; lsave(); lrender(); setTimeout(ladvance, (window.LoadTiers && LoadTiers.ms) ? LoadTiers.ms(reduce ? -4 : -1.5) : 520); };
     $('ol-lock').onclick = lock;
     c.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !(e.target && e.target.closest && e.target.closest('#ol-back, #ol-skip, #ol-lock'))) { e.preventDefault(); lock(); } });
-    $('ol-back').onclick = function () { if (L.i > 0) { L.i--; lsave(); lrender(); } else lclose(); };
+    $('ol-back').onclick = function () { if (L.i > LR.from) { L.i--; lsave(); lrender(); } else lclose(); };
     $('ol-skip').onclick = ladvance;
     return c;
   }
   var lfind = function (t) { for (var i = 0; i < LPOOL.length; i++) if (LPOOL[i].t === t) return LPOOL[i]; return T(t, '✨'); };
   function lrender() {
     var a = L.ans[L.i];
-    $('ol-dots').innerHTML = LQ.map(function (x, i) { return '<i class="' + (i < L.i ? 'done' : i === L.i ? 'now' : '') + '"></i>'; }).join('');
-    $('ol-count').textContent = 'Question ' + (L.i + 1) + ' of ' + LQ.length;
-    $('ol-text').textContent = L.i ? 'Next: more of which one?' : 'What should your page help you do more of?';
+    var n = LR.to - LR.from, k = L.i - LR.from;
+    $('ol-phase').textContent = LR.rid === 'learn' ? 'What you want to learn' : 'Build more · what you want to learn';
+    $('ol-dots').innerHTML = LQ.slice(LR.from, LR.to).map(function (x, i) { return '<i class="' + (i < k ? 'done' : i === k ? 'now' : '') + '"></i>'; }).join('');
+    $('ol-count').textContent = 'Question ' + (k + 1) + ' of ' + n;
+    $('ol-text').textContent = k ? 'Next: more of which one?' : 'What should your page help you do more of?';
     a.opts.forEach(function (t, i) { var o = lfind(t), b = $('ol-t' + i); b.innerHTML = '<span class="emo" aria-hidden="true"></span><span class="txt"></span>';
       b.querySelector('.emo').textContent = o.e; b.querySelector('.txt').textContent = o.t;
       b.classList.toggle('picked', a.pick === 'pair'); b.setAttribute('aria-pressed', String(a.pick === 'pair')); });
-    $('ol-back').disabled = L.i === 0;   // Back on every screen after the first
+    $('ol-back').disabled = L.i === LR.from;   // Back on every screen after the first
   }
   function lline(a) { return a.pick == null ? 'skipped (' + a.opts.join(' / ') + ')' : a.pick === 'pair' ? 'More ' + a.opts[0] + ', less ' + a.opts[1] : 'More ' + a.opts[a.pick] + ', less ' + a.opts[1 - a.pick]; }
   async function ladvance() {
-    if (L.i < LQ.length - 1) { L.i++; lsave(); lrender(); return; }
-    var head = '[Answers · What I want to learn' + (L.sent ? ' · updated' : '') + ' · propose-only]', lines = L.ans.map(function (a, i) { return (i + 1) + '. ' + lline(a); });
+    if (L.i < LR.to - 1) { L.i++; lsave(); lrender(); return; }
+    var more = LR.rid !== 'learn', head = '[Answers · What I want to learn' + (more ? ' · Build more' : '') + (L.sent ? ' · updated' : '') + ' · propose-only]', lines = [];
+    for (var i = LR.from; i < LR.to; i++) lines.push((i + 1) + '. ' + lline(L.ans[i]));
     var st = $('ol-stat'); st.className = 'sendstat'; st.textContent = 'Sending your picks to ' + BI.host() + '…';
     var r = await BI.send(head + '\n' + lines.join('\n'), { kind: 'answers', part: 'learn' });
-    L.sent = Date.now(); L.i = 0; if (window.Resume) Resume.clear('learn');   // finished: the record goes
+    L.sent = Date.now(); L.i = LR.from; if (window.Resume) Resume.clear(LR.rid); lmark(more ? 'more' : 'first');   // finished: the record goes
     gate();
     st.className = 'sendstat ' + (r === 'failed' ? 'bad' : 'ok'); st.textContent = r === 'failed' ? 'Couldn’t send yet (no connection?). It’s saved in the chat.' : '✓ Sent to ' + BI.host() + ' (encrypted). Nothing changes until ' + BI.host() + ' says yes.';
     setTimeout(lclose, sec(1) * 1000);
   }
-  async function learnOpen() {
+  async function learnOpen(more) {
     if (!done()) return start();
-    if (!L) await lload(); lcard();
+    var R2 = RANGES[more === true ? 'more' : 'first']; if (LR !== R2 || !L) { LR = R2; await lload(); } lcard();
     ['q-start', 'q-quiz', 'q-break', 'q-done', 'pz'].forEach(function (id) { var e = $(id); if (e) e.hidden = true; });
     $('ob-learn').hidden = false; $('ol-stat').textContent = ''; lrender(); window.scrollTo(0, 0);
     if (window.Adapt) Adapt.note('learn', 'open');
   }
-  function lclose() { var c = $('ob-learn'); if (c) c.hidden = true; $('q-start').hidden = false; gate(); window.scrollTo(0, 0); }
+  function lclose() { var c = $('ob-learn'); if (c) c.hidden = true; $('q-start').hidden = false; gate(); if (window.BuildMore) BuildMore.refresh(); window.scrollTo(0, 0); }
 
   function css() { if ($('ob-css')) return; var s = document.createElement('style'); s.id = 'ob-css';
     s.textContent = '.ob-gate{border:1px solid var(--ac);border-radius:var(--r);padding:14px;margin:12px 0;background:var(--sf2)}.ob-gate h2{margin:4px 0 6px}.ob-gate .btnrow{margin-top:8px}' +
@@ -223,9 +245,13 @@
     document.head.appendChild(s); }
   // the orb's own help text for each part comes from the same naming content (one source), so any drop on it can say it
   function parts() { if (!window.QuizOrb || !QuizOrb.part) return; ITEMS.forEach(function (it) { if (it.id.indexOf('p-') !== 0) QuizOrb.part(it.sel, it.x); }); }
-  async function open() { if (!window.BI || !BI.ready()) return; css(); parts(); N = await nload(); gate(); }
+  // Build more (js/buildmore.js) loads on tap, or in an idle slot once step 1 is done
+  function bmLoad() { if (window.BuildMore) { BuildMore.refresh(); return; } if ($('bm-js')) return; var sp = document.createElement('script'); sp.id = 'bm-js'; sp.src = 'js/buildmore.js?v=1'; sp.async = true; document.head.appendChild(sp); }
+  function bmIdle() { if (!done() || window.BuildMore) return; var ric = window.requestIdleCallback || function (f) { return setTimeout(f, sec(2) * 1000); }; ric(function () { if (window.BI && BI.ready() && done()) bmLoad(); }, { timeout: sec(4) * 1000 }); }
+  async function open() { if (!window.BI || !BI.ready()) return; css(); parts(); N = await nload(); gate(); var g = $('bm-go'); if (g) g.onclick = bmLoad; bmIdle(); }
   document.addEventListener('bi:open', open);
   document.addEventListener('bi:lock', function () { running = false; L = null; var c = $('ob-learn'); if (c) c.remove(); var g = $('ob-gate'); if (g) g.remove(); document.documentElement.classList.remove('ob-naming'); });
-  window.Onboard = { done: done, start: start, learn: learnOpen, items: function () { return ITEMS.map(function (i) { return i.id; }); }, running: function () { return running; } };
+  window.Onboard = { done: done, start: start, learn: learnOpen, learnMore: function () { return learnOpen(true); }, nameMore: nameMore,
+    resetLearnMore: function () { if (LR === RANGES.more) L = null; }, resetNameMore: function () { M = null; }, items: function () { return ITEMS.map(function (i) { return i.id; }); }, running: function () { return running; } };
   open();
 })();

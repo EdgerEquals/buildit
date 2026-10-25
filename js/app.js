@@ -71,14 +71,14 @@
     document.querySelectorAll('[data-host]').forEach((e) => { e.textContent = HOST(); });
     $('f-credit').textContent = 'Made by ' + HOST() + ', with help from Simmie';
     $('q-hello').textContent = 'Hey ' + NAME() + '!';
-    $('q-lead').textContent = "Let's build your page together. Everything on your screen right now (your bot, the orbiting emojis, the light, the wave, the DJ and the colours) is a piece you can keep or change. Nothing here is public: only " + HOST() + ' sees your answers, and nothing changes until ' + HOST() + ' says yes.';
+    $('q-lead').textContent = "Let's build your page together. Everything on your screen right now (your bot, the orbiting emojis, the light, the wave, the DJ and the colours) is a piece you can build. Nothing here is public: only " + HOST() + ' sees your answers, and nothing changes until ' + HOST() + ' says yes.';
     setBotName();
     await loadProgress(); quizStart();
     await loadPending();
     // tier 1: the piece-by-piece questions (most important after unlock); tier 2 (idle, PHI^-2 apart, usage-ordered):
     // chat poll + live line, orbit emojis, the ratio pump; tier 3: DJ engine + zoom mark prefetch. DJ itself loads on tap.
     // the learner model and the quiz orb load with the questions (tier 1), in order: model, orb, then the questions
-    if (!window.Pieces) { ['js/learner.js?v=3', 'js/quiz-orb.js?v=3', 'js/onboard.js?v=1', 'js/pathways.js?v=3', 'js/pieces.js?v=5'].forEach((u) => { const sp = document.createElement('script'); sp.src = u; sp.async = false; document.head.appendChild(sp); }); }
+    if (!window.Pieces) { ['js/learner.js?v=3', 'js/quiz-orb.js?v=4', 'js/onboard.js?v=2', 'js/pathways.js?v=3', 'js/pieces.js?v=6'].forEach((u) => { const sp = document.createElement('script'); sp.src = u; sp.async = false; document.head.appendChild(sp); }); }
     else document.dispatchEvent(new CustomEvent('bi:open'));
     Tiers.add(2, startChat, 'chat', false);
     if (Tiers.script) { Tiers.script('js/orbit.js?v=1', 2, null, 'orbit'); Tiers.script('js/ratio-pump.js?v=1', 2, { 'data-site': 'buildit', 'data-freq': '0.75' }, 'pump', false); }

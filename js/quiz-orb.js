@@ -116,6 +116,7 @@
   function locked() { return !!(st && st.spec && st.spec.locked && st.spec.picked == null) || !!(st && st.hold); }
   function home() {
     if (!st || st.t === 0) return; if (st.spot && !st.spot.bub) release(); go(0);
+    if (st.spec && st.spec.onHome) st.spec.onHome();   // e.g. Later on an optional round
     var b = st.returnTo; st.returnTo = null; if (b && b.focus && document.contains(b)) try { b.focus({ preventScroll: true }); } catch (e) {}
   }
   function el(tag, cls, text) { var x = document.createElement(tag); if (cls) x.className = cls; if (text != null) x.textContent = text; return x; }
@@ -227,7 +228,7 @@
     var big = Math.max(r.width, r.height, 1), orb = st.orb.offsetWidth || 48, cs = getComputedStyle(t);
     t.setAttribute('data-qdrop', '');   // keeps the transition after the class goes, so it settles back smoothly
     t.style.setProperty('--qspot', (1 + (PHI - 1) * Math.min(1, orb / big)).toFixed(3));   // a ratio of the orb's own size
-    var lift = null; if (cs.position === 'static') { lift = [t.style.position, t.style.zIndex]; t.style.position = 'relative'; t.style.zIndex = '41'; }
+    var lift = null; if (cs.position === 'static') { lift = [t.style.position, t.style.zIndex]; t.style.position = 'relative'; t.style.zIndex = o.bubble === false ? '39' : '41'; }   // a spotlit part stays under the question panel
     if (calm()) document.documentElement.classList.add('qorb-calm');
     t.classList.add('qorb-spot'); st.spot = { el: t, rect: r, lift: lift, onEnd: o.onEnd };
     var text = o.text || (hit && hit.p && hit.p.text);

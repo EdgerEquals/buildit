@@ -11,7 +11,7 @@
 <!-- Private Build It page: chat + dashboard in one, behind the same password gate as the Simmie chat page
      (PBKDF2 250k -> AES-GCM; js/crypto.js). Nothing personal is in this file: the name, title and every
      answer live only in the encrypted config / log and on the page after the password. System fonts, no web fonts. -->
-<link rel="stylesheet" href="css/style.css?v=5">
+<link rel="stylesheet" href="css/style.css?v=6">
 <script src="js/adapt.js?v=1"></script>
 <script src="js/load-tiers.js?v=2"></script>
 </head>
@@ -63,12 +63,21 @@
       <section class="panel" id="q-start">
         <div class="leadrow"><img class="botav" src="img/bot-avatar.svg?v=2" width="56" height="56" alt="" aria-hidden="true" decoding="async"><h1 id="q-hello">Hey!</h1></div>
         <p class="lead" id="q-lead"></p>
-        <ol class="parts"><li><b>Your page, piece by piece</b> <span>everything already on your screen: pick which way each part should go, plus a quick Arduino challenge on most</span></li></ol>
-        <div class="btnrow"><button class="btn big" id="pz-go" data-use="pieces">Start</button><button class="btn ghost2" id="q-go" data-use="extra">Extra questions</button></div>
+        <ol class="parts"><li><b>Your page, piece by piece</b> <span>the main parts of everything already on your screen: pick which way each should go. Skip anything you like.</span></li></ol>
+        <div class="btnrow"><button class="btn big" id="pz-go" data-use="pieces">Start</button></div>
         <p class="resume" id="pz-resume" hidden></p>
         <p class="muted together" style="font-size:.85rem">We&rsquo;re building this in together, one real term at a time.</p>
-        <p class="muted" style="font-size:.85rem">Extra questions: about you, colour palettes, and more pieces <span data-host>Danny</span> could add later.</p>
-        <p class="resume" id="q-resume" hidden></p>
+        <div class="bm" id="bm" data-guard="build-more">
+          <h2 class="bm-h">Build more <span class="muted">(optional)</span></h2>
+          <p class="muted bm-note">You can come back any time and build more on your dashboard.</p>
+          <div class="btnrow"><button type="button" class="btn ghost2" id="bm-go" data-use="buildmore">Open Build more</button></div>
+          <div id="bm-list" hidden>
+            <div class="btnrow" id="bm-tiles"></div>
+            <div class="btnrow"><button class="btn ghost2" id="q-go" data-use="extra">Extra questions</button></div>
+            <p class="muted" style="font-size:.85rem">Extra questions: about you, colour palettes, and more pieces <span data-host>Danny</span> could add later.</p>
+            <p class="resume" id="q-resume" hidden></p>
+          </div>
+        </div>
       </section>
 
       <section class="pz-card" id="pz" hidden aria-live="polite"></section>
@@ -135,6 +144,6 @@
   </footer>
 </div>
 <script src="js/crypto.js?v=4"></script>
-<script src="js/app.js?v=7" defer></script>
+<script src="js/app.js?v=8" defer></script>
 </body>
 </html>
