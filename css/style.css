@@ -291,6 +291,7 @@ html.lite *{animation-play-state:paused!important}
 .pz-p .pl b{font-weight:700}
 .pz-p .pv{font:12.5px/1.4 ui-monospace,Menlo,monospace;color:var(--ac2)}
 .pz-p .ph{display:block;color:var(--mu);font-size:.85rem;margin-top:2px}
+.pz-p .ar{color:var(--ac2);font-family:ui-monospace,Menlo,monospace;font-size:.8rem}.pz-p .ar b{font-family:system-ui,sans-serif}
 .pz-ch{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .pz-ch button{border:1px solid var(--ln);background:var(--bg);border-radius:999px;padding:5px 12px;font-size:.88rem}
 .pz-ch button[aria-pressed=true]{background:var(--ac);color:var(--bg);border-color:var(--ac);font-weight:700}

@@ -16,13 +16,15 @@ appears, a short message in the bot's voice.
 | **Stretched, not stuck** | Difficulty aims for naming about 61.8% (1/PHI) straight off: hard enough to grow, easy enough to keep going. |
 | **Free-wheel** | Every ladder in the system (level, options, term depth, motion) moves continuously through damped, phi-tuned couplings. Steps only time changes; nothing freezes or hard-gates. |
 | **Propose-only** | Answers and picks go encrypted to the page owner. Nothing on the page changes without the owner's yes. |
+| **Plain words, real term** | Short sentences and everyday words, and always the real name with a one-line meaning ("Period = how long one full cycle takes"). |
+| **Screen to circuit** | Every on-screen parameter links to how you would do it on an Arduino (delay()/millis(), analogWrite() PWM and duty cycle, Servo.write(), tone()). |
 | **On-device first** | The learner model lives in this browser. Only a compact numeric summary travels, inside the encrypted answers. |
 
 ## How the code expresses it
 
 | File | Role |
 | --- | --- |
-| `js/pieces.js` | Content: each piece's parameters and its physics challenge (term `t`, question, options, explanation `x`). |
+| `js/pieces.js` | Content: each piece's parameters and its physics challenge (term `t`, question, options, explanation `x`), in plain Year 7 wording. Each parameter can carry `ar`: how you would build it on an Arduino, with numbers worked out from the same phi values. |
 | `js/learner.js` | The learner model and the lingo bank (term to depth). Builds options and records results. |
 | `js/quiz-orb.js` | The view: the quiz orb that brings a name-this question to the centre of the screen and glides home after. Built on the help orb architecture (single instance, home dock, one dialog with focus trap, spring home). |
 
@@ -41,7 +43,7 @@ Numbers and fixed term ids only. Typed answers ("in your own words") are never s
 - **Recall decay, phi-spaced:** `r = s * PHI^(-days / PHI^k)`. Naming a term moves `s` a 1/PHI step towards 1 and adds a rung (the next interval is PHI times longer); meeting it moves `s` towards PHI^-2 and divides the rung by PHI.
 - **Level:** continuous 0..3. Targets move by +PHI^-3 for a term named, -PHI^-2 for a term met, and +/-PHI^-1 for a "too easy"/"too hard" tap. The level follows through a spring (natural period PHI^2 answers, damping ratio 1/PHI), so it glides and settles. The balance point of the +PHI^-3 / -PHI^-2 pair is 61.8% named.
 - **Option count:** the ladder 2 / 3 / 5 / 10. Index = `floor(L' + u)`, with `u = frac(n * 0.618...)` and `L'` the level nudged by that term's own recall. The dither makes the expected count a smooth function of the level, with no threshold.
-- **Term depth:** distractors for name-this questions come from the lingo bank, weighted `PHI^(-PHI^2 * |depth - 2L/3|)`, and the question author's own distractors are weighted PHI^3 higher. Near-synonyms of the answer are never used as distractors. Number and sentence questions keep their own options and use the largest ladder count that fits; true/false is always 2.
+- **Term depth:** distractors for name-this questions come from the lingo bank, weighted `PHI^(-PHI^2 * |depth - 2L/3|)`, and the question author's own distractors are weighted PHI^3 higher. Near-synonyms of the answer are never used as distractors. The bank has two families, physics and Arduino (LED, delay(), millis(), digitalWrite(), analogWrite(), PWM, duty cycle, tone(), Servo.write() ...); a term from the other family is weighted PHI^-2. Near-synonyms such as PWM and duty cycle never appear together as answer and distractor. Number and sentence questions keep their own options and use the largest ladder count that fits; true/false is always 2.
 - **Summary sent with each piece's encrypted answers:** level, option range, recall and exposure count per term, and the easy/hard tap counts. No free text, no names.
 
 ### Quiz orb motion

@@ -112,14 +112,14 @@
   }
   function intro() { open(function (pan) { introBody(pan, st.spec && st.spec.bot); }); }
   function askBody(pan, s) {
-    pan.appendChild(el('span', 'qo-term', s.term));
+    var tag = el('span', 'qo-term', s.label || 'Your turn'); pan.appendChild(tag);   // the term itself shows after the pick, or it gives the answer away
     var h = el('h2', null, s.q); h.id = 'qo-q'; pan.appendChild(h); pan.setAttribute('aria-labelledby', 'qo-q');
     var box = el('div', 'qo-opts' + (s.opts.length >= 5 ? ' many' : '')); box.setAttribute('role', 'group'); box.setAttribute('aria-labelledby', 'qo-q'); pan.appendChild(box);
     var fb = el('div'), row = el('div', 'qo-row'); fb.setAttribute('role', 'status'); pan.appendChild(fb); pan.appendChild(row);
     s.opts.forEach(function (o, k) { var b = el('button', null, o); b.type = 'button'; b.onclick = function () { if (s.picked == null) s.onPick(k); }; box.appendChild(b); });
     function mark() {
       box.querySelectorAll('button').forEach(function (b, k) { b.disabled = true; if (k === s.a) b.classList.add('named'); else if (k === s.picked) b.classList.add('met'); });
-      var ok = s.picked === s.a; fb.className = 'qo-fb' + (ok ? '' : ' term'); fb.innerHTML = '';
+      tag.textContent = s.term; var ok = s.picked === s.a; fb.className = 'qo-fb' + (ok ? '' : ' term'); fb.innerHTML = '';
       fb.appendChild(el('b', null, ok ? 'Spot on! ' : 'Here’s the term for that: ')); fb.appendChild(document.createTextNode(s.explain));
       row.innerHTML = '';
       [['easy', 'Too easy'], ['hard', 'Too hard']].forEach(function (x) { var b = el('button', null, x[1]); b.type = 'button'; b.setAttribute('aria-pressed', 'false');

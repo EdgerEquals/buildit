@@ -11,7 +11,8 @@
    - Options: index = floor(L' + u) on the ladder 2 / 3 / 5 / 10, where u is the golden-ratio sequence frac(n * 0.618) and
      L' = L nudged by this term's own recall. The dither means the level is never frozen by a threshold: a level of 1.4
      gives 3 options 60% of the time and 5 options 40%, spread evenly. Quantisation only times the change.
-   - Term depth: distractor terms are weighted by PHI^(-PHI^2 * |depth - 2L/3|), so deeper terms appear as the level rises.
+   - Term depth: distractor terms are weighted by PHI^(-PHI^2 * |depth - 2L/3|), so deeper terms appear as the level rises;
+     terms from the other family (physics vs Arduino) are weighted PHI^-2, so they turn up now and then without crowding.
    ADAPTER POINT: if the shared js/phi-adapt.js is loaded first and exposes window.PhiAdapt.learner with the same method
    names (record, tap, level, summary, data), every call is forwarded there and this file only builds the options. */
 (function () {
@@ -23,9 +24,15 @@
   var BANK = { period: 0, frequency: 0, amplitude: 0, cycle: 0, speed: 0, wave: 0, pitch: 0, rhythm: 0, loudness: 0,
     phase: 1, wavelength: 1, damping: 1, resonance: 1, threshold: 1, hertz: 1, octave: 1, reflection: 1, oscillation: 1, ratio: 1, refraction: 1, amplifying: 1,
     'Lissajous curve': 2, harmonic: 2, 'natural frequency': 2, interference: 2, modulation: 2, attenuation: 2, ellipse: 2, 'irrational number': 2,
-    'golden angle': 2, 'spring constant': 2, 'equal-power curve': 2, 'beat frequency': 2 };
+    'golden angle': 2, 'spring constant': 2, 'equal-power curve': 2, 'beat frequency': 2,
+    // Arduino lingo (same depth scale)
+    LED: 0, pin: 0, 'delay()': 0, 'digitalWrite()': 1, 'analogWrite()': 1, PWM: 1, 'duty cycle': 1, 'millis()': 1, 'tone()': 1, servo: 1,
+    'Servo.write()': 2, 'noTone()': 2, 'analogRead()': 2, 'square wave': 2, microcontroller: 2, 'setup()': 2, 'loop()': 2 };
+  var ARDUINO = ['LED', 'pin', 'delay()', 'digitalWrite()', 'analogWrite()', 'PWM', 'duty cycle', 'millis()', 'tone()', 'servo', 'Servo.write()', 'noTone()', 'analogRead()', 'square wave', 'microcontroller', 'setup()', 'loop()'];
+  var grp = function (k) { return ARDUINO.indexOf(k) >= 0 ? 1 : 0; };
   // near-synonyms that would make a distractor unfair for that answer
-  var CLOSE = { period: ['cycle'], frequency: ['hertz', 'pitch'], amplitude: ['loudness'], damping: ['attenuation'], resonance: ['natural frequency'], hertz: ['frequency'] };
+  var CLOSE = { period: ['cycle'], frequency: ['hertz', 'pitch'], amplitude: ['loudness'], damping: ['attenuation'], resonance: ['natural frequency'], hertz: ['frequency'],
+    PWM: ['duty cycle', 'analogWrite()'], 'duty cycle': ['PWM'], 'analogWrite()': ['PWM'], 'Servo.write()': ['servo'], 'tone()': ['square wave'] };
   var norm = function (s) { return String(s).trim().replace(/^an? /i, '').toLowerCase(); };
   var bankKey = {}; Object.keys(BANK).forEach(function (k) { bankKey[norm(k)] = k; });
 
@@ -65,7 +72,7 @@
   }
   // build the options for one question: {opts, a, n}. Term ("name this") questions draw extra distractors from the lingo bank.
   function build(q, seed) {
-    var R = rng(seed + ':' + D.n), right, pool, isTerm, n;
+    var R = rng(seed + ':' + D.n), right, pool, isTerm, n; R(); R(); R();   // warm up: similar seeds start apart
     if (q.tf) { D.n++; save(); return { opts: ['True', 'False'], a: q.a, n: 2 }; }
     right = q.o[q.a]; isTerm = q.o.every(function (o) { return bankKey[norm(o)]; });
     n = want(q.t);
@@ -74,7 +81,7 @@
       var rk = bankKey[norm(right)], ban = [norm(right)].concat((CLOSE[rk] || []).map(norm)), Dd = level() * 2 / 3;
       pool = Object.keys(BANK).filter(function (k) { return ban.indexOf(norm(k)) < 0; }).map(function (k) {
         var own = others.some(function (o) { return norm(o) === norm(k); });
-        return { o: own ? others.filter(function (o) { return norm(o) === norm(k); })[0] : k, w: Math.pow(PHI, -PHI * PHI * Math.abs(BANK[k] - Dd)) * (own ? PHI * PHI * PHI : 1) };
+        return { o: own ? others.filter(function (o) { return norm(o) === norm(k); })[0] : k, w: Math.pow(PHI, -PHI * PHI * Math.abs(BANK[k] - Dd)) * (own ? PHI * PHI * PHI : 1) * (grp(k) === grp(rk) ? 1 : 1 / (PHI * PHI)) };
       });
       while (pick.length < n - 1 && pool.length) {          // weighted draw without replacement
         var tot = 0, i; pool.forEach(function (p) { tot += p.w; }); var x = R() * tot;
