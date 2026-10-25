@@ -170,17 +170,46 @@ The off-device gate is hard off (`GATE = false`). Opening it needs the page owne
 It opens a rung when the pace pushes its edge with no extra Back or Skip. It closes a rung when Back and Skip rise past
 PHI x the usual rate.
 
-**Dial 3, season pump.** Day length today, between this latitude's shortest and longest day, sets a season value from -1 to
-+1. Surfaces lean toward the page's own warm colour (`--bad`) in long days and its own cool accent (`--ac`) in short ones,
-by season x the dial. Palette only. Lite switched on closes a rung; a session without Lite opens one back toward the start.
-Preview overrides: `?season=summer`, `?season=winter`, `?dials=1` (a small read-out of the rungs).
+**Dial 3, season pumps** (Kids Club "Season pumps standard", 2026-10-25 21:47 AWST; preview). Palette warmth only.
+Six sky clocks are worked out on the device from the date, the time and one coarse point. There is no feed and no request.
+They are timing anchors only; no physical coupling is claimed. Schumann resonance, evection and the slow lunar apsidal and
+nodal cycles are left out.
 
-**Latitude.** Worked out on the device and kept in memory. It is the coarse value from the encrypted config if the page
-owner adds one (`BI.lat()`, rounded to 5 degrees). Otherwise it is the hemisphere from the browser's time zone and a
-mid-latitude band. No place is in any public file.
+One formula for every pump: out = measured base x product of swing ^ (weight x c / 2). Here c = cos(2 pi x phase), the
+clock's place in its own cycle, and weight = PHI ^ -(phi-steps between the pump's period and the output's timescale).
+
+| Pump | Period | c (phase) | Swing (cited ratio) |
+| --- | --- | --- | --- |
+| sun | solar day | smooth rest/day signal from the sun's height: -1 below civil twilight, +1 above the horizon, a cosine ease between | PHI (flagged: no cited ratio) |
+| M2 | lunar semidiurnal | cos(2 x lunar hour angle) | Moon apogee / perigee |
+| S2 | solar semidiurnal | cos(2 x solar hour angle) | Earth aphelion / perihelion |
+| beat | spring-neap (from S2 and M2) | cos(2 x mean elongation), the synodic month's phase | (M2 + S2) / (M2 - S2) equilibrium amplitudes |
+| anom | anomalistic month | cos(Moon's mean anomaly), perigee at +1 | Moon apogee / perigee |
+| year | tropical year | local day length between this latitude's shortest and longest day, -1 to +1 | longest / shortest day |
+
+The base is the page's own palette as drawn on the screen. The output's timescale is the kid's own return rhythm (the gap
+between sessions, smoothed by Dial 1's share and kept in this record); until there are two sessions it is the mean solar
+day. Surfaces lean toward the page's warm colour (`--bad`) when the product is above 1 and its cool accent (`--ac`) when it
+is below, by the dial rung x log_PHI(product) / log_PHI(largest product possible today). Then the WCAG floors (text 4.5:1,
+borders 3:1) pull the lean back toward the page's own palette by PHI steps until every pair passes.
+Lite switched on closes a rung; a session without Lite opens one back toward the start.
+Preview overrides (nothing stored): `?at=<ISO date-time>` simulates a moment, `?season=summer|winter` pins the year clock,
+`?dials=1` shows a small read-out of the rungs and pumps.
+
+**Location.** Worked out on the device and kept in memory. Latitude and longitude come from the encrypted config if the
+page owner adds the one coarse city point (`BI.lat()`, `BI.lon()`, rounded to 5 degrees). Otherwise latitude is the
+hemisphere from the browser's time zone and a mid-latitude band, and longitude is the time zone's own meridian. No place is
+in any public file.
 
 ### Reference data (rule 11)
 
-NOAA Global Monitoring Laboratory, "General Solar Position Calculations" (gml.noaa.gov/grad/solcalc/solareqns.PDF): the
-fractional year, the solar declination series and its coefficients, and the sunrise and sunset zenith of 90.833 degrees.
-These are published external values, so they stay fixed; the season dial pumps on top of them.
+All in the `REFERENCE DATA` block of `js/dials.js`. Asserted, not verified, until checked against JPL Horizons.
+
+- NOAA GML, "General Solar Position Calculations": fractional year, equation of time and declination series, sunrise and
+  sunset zenith 90.833 degrees. NOAA solar calculator glossary: civil twilight ends with the sun 6 degrees down.
+- Meeus, Astronomical Algorithms (2nd ed.): Julian Day, mean elongation and the Moon's mean anomaly (eqs 47.2, 47.4),
+  synodic month, anomalistic month, tropical year.
+- NOAA CO-OPS constituent speeds (Schureman, SP 98): M2 28.9841042 and S2 30 degrees per hour.
+- NASA NSSDC fact sheets: Moon perigee and apogee, Earth perihelion and aphelion.
+- Cartwright and Tayler (1971): equilibrium-tide amplitudes of M2 and S2.
+- W3C WCAG 2.1: contrast 4.5:1 for text (SC 1.4.3), 3:1 for UI borders (SC 1.4.11), relative luminance.
