@@ -1,0 +1,13 @@
+{
+ "v": 1,
+ "kdf": {
+  "name": "PBKDF2",
+  "hash": "SHA-256",
+  "iter": 600000,
+  "salt": "df6N2xCwEIiKffKV0j/W3g=="
+ },
+ "config": {
+  "iv": "ldBc/Q9xWfPJJCkV",
+  "ct": "Z5BK4d45PHe8aImIu/xWVa8ptVbbPNINmtoarLijSNayyxhk6MTNeCMxm7ZiuS7YZW/Jy95jcAxvNoZGZNhDDrqH2qXGIRIxxIOFTAHIM0aXlxDFt+AH9iWvU6Z4D1ogln/n3O7R/5U9DMDstTiKKTOMeT7xA4zTEhlF2rk36ag9roTu2vuTXoLiopcD9L4kkI+ICIWD4cn8UwSdGAFLYLBJHUG1PF0LnHx+T0O+gA6E7OakhHlGYIatiNpAxGujAUR8utuq10qJi4/umlTU3Vr4+waLr0VTpie4RJ5pTEYoKYMjFHvxuAJnw3WbHpjkqVDMWlprc0bG"
+ }
+}
