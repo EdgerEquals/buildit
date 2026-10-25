@@ -82,6 +82,7 @@ button{cursor:pointer}
 .tile .txt{font-weight:700;font-size:1rem;overflow-wrap:anywhere}
 .tile.swap{animation:swap var(--ph-2) ease-out}
 @keyframes swap{from{transform:rotateY(80deg);opacity:.2}to{transform:none;opacity:1}}
+.rp-lab{display:block;font-size:.82rem;font-weight:700;color:var(--ac2);margin:0 0 6px}.rp-lab.least{color:var(--mu)}.rp-row{margin-top:12px}
 .roll{margin-top:8px;background:var(--sf2);color:var(--tx);border:1px solid var(--ln);font-weight:600;padding:8px}
 .yn .roll{visibility:hidden}
 .askbox{margin-top:16px;border-top:1px solid var(--ln);padding-top:12px}

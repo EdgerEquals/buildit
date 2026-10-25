@@ -141,6 +141,7 @@
   addEventListener('online', online); addEventListener('offline', online); online();
 
   // ================= questions =================
+  const PHIR = 1.6180339887;
   const O = (t, e) => ({ t, e });
   const P = (n, b, s, a, a2, tx) => ({ t: n, pal: { b, s, a, a2, tx } });
   // Part 1: context, to get a feel for the theme. yn = Yes / No; tot = this or that (+ Roll from POOL)
@@ -241,8 +242,8 @@
       const t = $('t' + i); t.innerHTML = tileHTML(q, o);
       const em = t.querySelector('.emo'); if (em) em.textContent = o.e;
       t.querySelector('.txt').textContent = o.t;
-      t.classList.toggle('picked', a.pick === i); t.setAttribute('aria-pressed', String(a.pick === i));
-      t.setAttribute('aria-label', (q.type === 'pal' ? 'Palette: ' : '') + o.t);
+      t.classList.toggle('picked', a.pick === 'pair'); t.setAttribute('aria-pressed', String(a.pick === 'pair'));
+      t.setAttribute('aria-label', (i ? 'Not really me: ' : 'I love this most: ') + (q.type === 'pal' ? 'palette ' : '') + o.t + '. Tap to roll another.');
     });
     $('q-note').value = ''; $('q-saved').textContent = '';
     $('q-notes').innerHTML = ''; a.notes.forEach((n) => { const li = document.createElement('li'); li.textContent = '✉️ ' + n; $('q-notes').appendChild(li); });
@@ -255,19 +256,22 @@
     if (finishedPart) { const p = st.part; sendPart(p); if (S.qi >= STEPS.length) done(); else partBreak(p); }
     else renderQ();
   }
-  [0, 1].forEach((i) => {
-    const t = $('t' + i);
-    t.onclick = () => { const q = STEPS[S.qi].q; A(q).pick = i; renderQ(); setTimeout(advance, Tiers.ms ? Tiers.ms(reduce ? -4 : -1.5) : 520); };   // PHI^(-1.5 + step) s, PHI^(-4 + step) s reduced
-  });
-  document.querySelectorAll('.roll').forEach((b) => {
-    b.onclick = () => {
-      const i = +b.dataset.i, q = STEPS[S.qi].q, a = A(q); if (q.type === 'yn') return;
-      const list = q.type === 'pal' ? PALS : q.type === 'way' ? WAYS : POOL.concat(q.opts);
-      const c = list.filter((o) => !a.opts.includes(o.t));
-      a.opts[i] = c[Math.floor(Math.random() * c.length)].t; a.pick = null; saveProgress(); renderQ();
-      const t = $('t' + i); t.classList.remove('swap'); void t.offsetWidth; t.classList.add('swap');
-    };
-  });
+  // ROLL PAIRS (Kids Club standard, Danny 2026-10-25 16:20 AWST): LEFT box = what he loves most, RIGHT box = what he likes
+  // least. Each box rolls (tap the box or its Roll) through the options on golden-ratio steps (index += len / PHI, never a
+  // short loop); the right box skips the left pick. Lock it in (or Enter) saves the pair and moves on. Back keeps the picks.
+  function roll(i) {
+    const q = STEPS[S.qi].q, a = A(q); if (q.type === 'yn') return;
+    const list = q.type === 'pal' ? PALS : q.type === 'way' ? WAYS : POOL.concat(q.opts.filter((o) => !POOL.some((x) => x.t === o.t)));
+    const n = list.length, step = Math.max(1, Math.round(n / PHIR)); let k = list.findIndex((o) => o.t === a.opts[i]); if (k < 0) k = 0;
+    for (let g = 0; g < n; g++) { k = (k + step) % n; if (!a.opts.includes(list[k].t)) break; }
+    a.opts[i] = list[k].t; a.pick = null; saveProgress(); renderQ();
+    const t = $('t' + i); t.classList.remove('swap'); void t.offsetWidth; t.classList.add('swap');
+  }
+  [0, 1].forEach((i) => { $('t' + i).onclick = () => roll(i); });
+  document.querySelectorAll('.roll').forEach((b) => { b.onclick = () => roll(+b.dataset.i); });
+  function lockIn() { const q = STEPS[S.qi].q, a = A(q); a.pick = 'pair'; saveProgress(); renderQ(); setTimeout(advance, Tiers.ms ? Tiers.ms(reduce ? -4 : -1.5) : 520); }   // PHI^(-1.5 + step) s, PHI^(-4 + step) s reduced
+  $('q-lock').onclick = lockIn;
+  document.addEventListener('keydown', (e) => { if (e.key !== 'Enter' || $('q-quiz').hidden || $('view-q').hidden || (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName))) return; if (e.target && e.target.closest && e.target.closest('#q-back, #q-skip, #q-addnote, #q-lock')) return; e.preventDefault(); lockIn(); });
   $('q-addnote').onclick = () => {
     const v = $('q-note').value.trim(); if (!v) { $('q-saved').textContent = 'Type something first.'; return; }
     A(STEPS[S.qi].q).notes.push(v.slice(0, 400)); saveProgress(); renderQ(); $('q-saved').textContent = 'Added. It goes with your answers.';
@@ -277,14 +281,17 @@
   function partBreak(p) {
     panel('q-break');
     $('q-break-h').textContent = p === 1 ? 'Nice one! Part 1 done.' : 'Great picks! Part 2 done.';
-    $('q-break-p').textContent = p === 1 ? 'Next up: colours. You get two palettes at a time. Tap the one you like, or roll for a new one.' : 'Last part: pieces from ' + HOST() + '’s dashboard. Pick which way you would take each one, or roll for other ways.';
+    $('q-break-p').textContent = p === 1 ? 'Next up: colours. Roll the left box to the palette you love most and the right box to the one that is not really you, then lock it in.' : 'Last part: pieces from ' + HOST() + '’s dashboard. Roll the left box to the way you love most and the right box to the one that is not really you.';
     sendStatus('q-break-s', p);
     window.scrollTo(0, 0);
   }
   $('q-break-go').onclick = () => { panel('q-quiz'); renderQ(); };
+  $('q-break-back').onclick = () => { if (S.qi > 0) S.qi--; saveProgress(); panel('q-quiz'); renderQ(); window.scrollTo(0, 0); };   // picks are kept
+  $('q-done-back').onclick = () => { S.qi = STEPS.length - 1; saveProgress(); panel('q-quiz'); renderQ(); window.scrollTo(0, 0); };
   function answerLabel(q, a) {
     if (!a || a.pick == null) return 'skipped';
-    const o = optsOf(q); return q.type === 'yn' ? (a.pick === 0 ? 'Yes' : 'No') : o[a.pick].t + ' (over ' + o[1 - a.pick].t + ')';
+    const o = optsOf(q); if (a.pick === 'pair') return 'love most: ' + o[0].t + ' · like least: ' + o[1].t;
+    return q.type === 'yn' ? (a.pick === 0 ? 'Yes' : 'No') : o[a.pick].t + ' (over ' + o[1 - a.pick].t + ')';
   }
   function done() {
     panel('q-done');

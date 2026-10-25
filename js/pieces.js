@@ -201,7 +201,7 @@
   function renderParams() {
     var pc = LIST[S.i], el = $('pz'), a = S.ans[pc.id] = S.ans[pc.id] || {};
     el.innerHTML = head(pc, S.i, 'which way should it go?') + '<div class="pz-demo" id="pz-demo"></div><p class="pz-lead">' + esc(pc.lead) + '</p>' +
-      '<p class="pz-lead"><b>For each part: this way or that way?</b> Tap the way you would take it. Roll shows two other ways. Leave a part alone and it stays as it is. Nothing changes straight away: your picks go to ' + esc(BI.host()) + ', who says yes or no.</p><ul class="pz-params" id="pz-params"></ul>' +
+      '<p class="pz-lead"><b>For each part: which way do you love most, and which is not really you?</b> Roll each box until it feels right, then Lock it in (or press Enter). Leave a part alone and it stays as it is. Nothing changes straight away: your picks go to ' + esc(BI.host()) + ', who says yes or no.</p><ul class="pz-params" id="pz-params"></ul>' +
       '<label class="sr" for="pz-note">Anything else about this piece?</label><textarea id="pz-note" class="pz-note" rows="2" maxlength="400" placeholder="Anything else about this piece? (optional)"></textarea>' +
       '<div class="btnrow"><button type="button" class="btn bk" id="pz-back">&larr; Back</button><button type="button" class="btn" id="pz-next">Physics challenge &rarr;</button></div>';
     var d = $('pz-demo'), dh = pc.demo(d); if (dh) d.innerHTML = dh;
@@ -211,7 +211,7 @@
       li.innerHTML = '<div class="pl"><b>' + esc(p.l) + '</b></div><span class="pv">' + esc(p.v) + '</span>' + (p.h ? '<span class="ph">' + esc(p.h) + '</span>' : '') + (p.ar ? '<span class="ph ar"><b>Arduino:</b> ' + esc(p.ar) + '</span>' : '') + '<div class="pz-ch" role="group" aria-label="' + esc(p.l) + '"></div>';
       var ch = li.querySelector('.pz-ch'), cur = a[p.id], ways = document.createElement('div'); ch.appendChild(ways);
       // pathways: two concrete directions from the current value + Roll (js/pathways.js); no Keep / Change
-      if (window.Pathways) Pathways.render(ways, pc, p, a, save);
+      if (window.Pathways) Pathways.render(ways, pc, p, a, save, function () { var nx = li.nextElementSibling, f = nx && nx.querySelector('.pw-way'); if (f) { try { f.focus({ preventScroll: true }); nx.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {} } else { var n = $('pz-next'); if (n) n.focus(); } });
       if (p.k === 'colour' || p.k === 'text') {   // or make up your own direction
         var own = document.createElement('label'); own.className = 'pw-own'; own.textContent = p.k === 'colour' ? 'or pick your own colour ' : 'or type your own ';
         var inp = document.createElement('input'); inp.type = p.k === 'colour' ? 'color' : 'text'; inp.setAttribute('aria-label', p.l + ': your own idea');
@@ -278,7 +278,8 @@
   async function finishPiece() {
     var pc = LIST[S.i], sm = summary(pc), el = $('pz');
     el.innerHTML = head(pc, S.i, 'done') + '<h2>' + (sm.right === sm.asked ? 'Every term named! 🎉' : 'Nice work! New terms unlocked.') + '</h2><p class="pz-score">Terms you named straight off: ' + sm.right + ' of ' + sm.asked + '.</p>' +
-      '<p class="sendstat" id="pz-stat">Sending your picks to ' + esc(BI.host()) + '…</p><div class="btnrow"><button type="button" class="btn" id="pz-cont">' + (S.i < LIST.length - 1 ? 'Next piece &rarr;' : 'Finish') + '</button></div>';
+      '<p class="sendstat" id="pz-stat">Sending your picks to ' + esc(BI.host()) + '…</p><div class="btnrow"><button type="button" class="btn bk" id="pz-dback">&larr; Back</button><button type="button" class="btn" id="pz-cont">' + (S.i < LIST.length - 1 ? 'Next piece &rarr;' : 'Finish') + '</button></div>';
+    $('pz-dback').onclick = function () { S.stage = 'params'; save(); renderParams(); window.scrollTo(0, 0); };   // back to this piece, picks kept
     $('pz-cont').onclick = function () { if (S.i < LIST.length - 1) { S.i++; S.stage = 'params'; save(); renderParams(); } else { S.i = LIST.length; save(); renderDone(); } window.scrollTo(0, 0); };
     var head1 = '[Answers · Piece ' + (S.i + 1) + '/' + LIST.length + ' · ' + pc.name + (S.sent[pc.id] ? ' · updated' : '') + ' · propose-only]';
     var st = await BI.send(head1 + '\n' + sm.lines.join('\n').slice(0, 1700), { kind: 'answers', part: pc.name });

@@ -11,7 +11,7 @@
 <!-- Private Build It page: chat + dashboard in one, behind the same password gate as the Simmie chat page
      (PBKDF2 250k -> AES-GCM; js/crypto.js). Nothing personal is in this file: the name, title and every
      answer live only in the encrypted config / log and on the page after the password. System fonts, no web fonts. -->
-<link rel="stylesheet" href="css/style.css?v=4">
+<link rel="stylesheet" href="css/style.css?v=5">
 <script src="js/adapt.js?v=1"></script>
 <script src="js/load-tiers.js?v=2"></script>
 </head>
@@ -81,9 +81,10 @@
         <div class="prev" id="q-prev" hidden></div>
         <p class="pdesc" id="q-desc" hidden></p>
         <div class="choices" id="q-choices">
-          <div class="choice"><button type="button" class="tile" id="t0"></button><button type="button" class="btn roll" data-i="0">&#x1F3B2; Roll</button></div>
-          <div class="choice"><button type="button" class="tile" id="t1"></button><button type="button" class="btn roll" data-i="1">&#x1F3B2; Roll</button></div>
+          <div class="choice"><span class="rp-lab love" id="rp-l0">&#x1F499; I love this most</span><button type="button" class="tile" id="t0"></button><button type="button" class="btn roll" data-i="0">&#x1F3B2; Roll</button></div>
+          <div class="choice"><span class="rp-lab least" id="rp-l1">&#x1F4AD; Not really me</span><button type="button" class="tile" id="t1"></button><button type="button" class="btn roll" data-i="1">&#x1F3B2; Roll</button></div>
         </div>
+        <div class="btnrow rp-row"><button type="button" class="btn big" id="q-lock">Lock it in &crarr;</button></div>
         <div class="askbox">
           <label for="q-note">Want to add something? (optional)</label>
           <textarea id="q-note" maxlength="400" rows="2" placeholder="A question, an idea, or what you'd change…"></textarea>
@@ -97,7 +98,7 @@
         <h2 id="q-break-h">Nice one!</h2>
         <p id="q-break-p"></p>
         <p class="sendstat" id="q-break-s" role="status"></p>
-        <button class="btn big" id="q-break-go">Keep going</button>
+        <div class="btnrow"><button type="button" class="btn bk" id="q-break-back">&larr; Back</button><button class="btn big" id="q-break-go">Keep going</button></div>
       </section>
 
       <section class="panel" id="q-done" hidden>
@@ -105,7 +106,7 @@
         <p class="lead">Here&rsquo;s what you picked. It&rsquo;s been sent to <span data-host>Danny</span>, and you can change anything by going again.</p>
         <p class="sendstat" id="q-done-s" role="status"></p>
         <ol class="sumlist" id="q-sum"></ol>
-        <div class="btnrow"><button class="btn" id="q-again">Go again</button><button class="btn ghost2" id="q-tochat">Open the chat</button></div>
+        <div class="btnrow"><button type="button" class="btn bk" id="q-done-back">&larr; Back</button><button class="btn" id="q-again">Go again</button><button class="btn ghost2" id="q-tochat">Open the chat</button></div>
       </section>
     </section>
 
@@ -134,6 +135,6 @@
   </footer>
 </div>
 <script src="js/crypto.js?v=4"></script>
-<script src="js/app.js?v=5" defer></script>
+<script src="js/app.js?v=6" defer></script>
 </body>
 </html>
