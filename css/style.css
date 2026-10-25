@@ -279,7 +279,7 @@ html.lite .orb-layer,html.lite .tide{display:none}
 html.lite *{animation-play-state:paused!important}
 @media (prefers-reduced-motion:reduce){.orb-layer,.tide{display:none}}
 
-/* ================= piece-by-piece questions + physics quiz ================= */
+/* ================= piece-by-piece questions + Arduino challenges ================= */
 .pz-card{background:var(--sf);border:1px solid var(--ln);border-radius:var(--r);padding:18px}
 .pz-head{display:flex;align-items:center;gap:12px;margin:4px 0 10px}
 .pz-head h2{margin:0;font-size:clamp(1.15rem,4.4vw,1.4rem)}

@@ -1,4 +1,4 @@
-/* LEARNER: the on-device learner model behind the physics challenges (see docs/learning-model.md).
+/* LEARNER: the on-device learner model behind the naming step and the Arduino challenges (see docs/learning-model.md).
    One idea runs the whole file: "name it to build it". Every quiz answer is a chance to hand over the real term, never
    a mark against the learner, and the difficulty follows the learner instead of a fixed script.
    - Stored ONLY in this browser: localStorage "buildit.learner". Holds numbers and fixed term ids, never typed text.
@@ -12,7 +12,7 @@
      L' = L nudged by this term's own recall. The dither means the level is never frozen by a threshold: a level of 1.4
      gives 3 options 60% of the time and 5 options 40%, spread evenly. Quantisation only times the change.
    - Term depth: distractor terms are weighted by PHI^(-PHI^2 * |depth - 2L/3|), so deeper terms appear as the level rises;
-     terms from the other family (physics vs Arduino) are weighted PHI^-2, so they turn up now and then without crowding.
+     terms from the other family (interface names vs Arduino) are weighted PHI^-2, so they turn up now and then without crowding.
    ADAPTER POINT: if the shared js/phi-adapt.js is loaded first and exposes window.PhiAdapt.learner with the same method
    names (record, tap, level, summary, data), every call is forwarded there and this file only builds the options. */
 (function () {
@@ -20,19 +20,22 @@
   if (window.Learner) return;
   var PHI = 1.6180339887, GA = 0.6180339887, KEY = 'buildit.learner', DAY = 864e5, LADDER = [2, 3, 5, 10];
   var ext = window.PhiAdapt && window.PhiAdapt.learner && typeof window.PhiAdapt.learner.record === 'function' ? window.PhiAdapt.learner : null;
-  // ---- the shared lingo: term -> depth (0 everyday, 1 physics words, 2 deeper ideas) ----
-  var BANK = { period: 0, frequency: 0, amplitude: 0, cycle: 0, speed: 0, wave: 0, pitch: 0, rhythm: 0, loudness: 0,
-    phase: 1, wavelength: 1, damping: 1, resonance: 1, threshold: 1, hertz: 1, octave: 1, reflection: 1, oscillation: 1, ratio: 1, refraction: 1, amplifying: 1,
-    'Lissajous curve': 2, harmonic: 2, 'natural frequency': 2, interference: 2, modulation: 2, attenuation: 2, ellipse: 2, 'irrational number': 2,
-    'golden angle': 2, 'spring constant': 2, 'equal-power curve': 2, 'beat frequency': 2,
+  // ---- the shared lingo: term -> depth (0 everyday, 1 page-building words, 2 deeper ideas) ----
+  // Two families: the interface vocabulary (names of the page's parts and their properties) and Arduino. Physics terms
+  // are not in the bank any more: physics runs the page in the background and is never shown.
+  var BANK = { header: 0, footer: 0, avatar: 0, 'page title': 0, tab: 0, button: 0, panel: 0, icon: 0, colour: 0, speed: 0, direction: 0, size: 0,
+    'lock button': 1, 'status light': 1, 'tide line': 1, 'DJ pill': 1, 'quiz orb': 1, 'orbit emojis': 1, 'Lite switch': 1, 'see-through': 1, 'text box': 1, 'send button': 1, 'chat log': 1, slider: 1, 'play button': 1, 'rename button': 1,
+    'menu bar': 2, toolbar: 2, badge: 2, banner: 2, 'pop-up': 2, layer: 2, 'tooltip': 2,
     // Arduino lingo (same depth scale)
-    LED: 0, pin: 0, 'delay()': 0, 'digitalWrite()': 1, 'analogWrite()': 1, PWM: 1, 'duty cycle': 1, 'millis()': 1, 'tone()': 1, servo: 1,
-    'Servo.write()': 2, 'noTone()': 2, 'analogRead()': 2, 'square wave': 2, microcontroller: 2, 'setup()': 2, 'loop()': 2 };
-  var ARDUINO = ['LED', 'pin', 'delay()', 'digitalWrite()', 'analogWrite()', 'PWM', 'duty cycle', 'millis()', 'tone()', 'servo', 'Servo.write()', 'noTone()', 'analogRead()', 'square wave', 'microcontroller', 'setup()', 'loop()'];
+    LED: 0, pin: 0, 'delay()': 0, 'digitalWrite()': 1, 'analogWrite()': 1, PWM: 1, 'millis()': 1, 'tone()': 1, servo: 1,
+    'Servo.write()': 2, 'noTone()': 2, 'analogRead()': 2, microcontroller: 2, 'setup()': 2, 'loop()': 2 };
+  var ARDUINO = ['LED', 'pin', 'delay()', 'digitalWrite()', 'analogWrite()', 'PWM', 'millis()', 'tone()', 'servo', 'Servo.write()', 'noTone()', 'analogRead()', 'microcontroller', 'setup()', 'loop()'];
   var grp = function (k) { return ARDUINO.indexOf(k) >= 0 ? 1 : 0; };
   // near-synonyms that would make a distractor unfair for that answer
-  var CLOSE = { period: ['cycle'], frequency: ['hertz', 'pitch'], amplitude: ['loudness'], damping: ['attenuation'], resonance: ['natural frequency'], hertz: ['frequency'],
-    PWM: ['duty cycle', 'analogWrite()'], 'duty cycle': ['PWM'], 'analogWrite()': ['PWM'], 'Servo.write()': ['servo'], 'tone()': ['square wave'] };
+  var CLOSE = { button: ['lock button', 'send button', 'play button', 'rename button', 'Lite switch', 'DJ pill', 'tab'], tab: ['button'], 'lock button': ['button'], 'send button': ['button'], 'play button': ['button'],
+    'rename button': ['button'], 'Lite switch': ['button'], 'DJ pill': ['button', 'badge'], badge: ['DJ pill'], avatar: ['icon'], icon: ['avatar'], 'status light': ['LED'], LED: ['status light'], header: ['banner', 'menu bar', 'toolbar'], banner: ['header'],
+    'menu bar': ['header', 'toolbar'], toolbar: ['header', 'menu bar'], panel: ['pop-up', 'layer'], 'pop-up': ['panel'], 'orbit emojis': ['layer'], layer: ['orbit emojis', 'panel'], 'quiz orb': ['pop-up'],
+    PWM: ['analogWrite()'], 'analogWrite()': ['PWM'], 'Servo.write()': ['servo'], servo: ['Servo.write()'] };
   var norm = function (s) { return String(s).trim().replace(/^an? /i, '').toLowerCase(); };
   var bankKey = {}; Object.keys(BANK).forEach(function (k) { bankKey[norm(k)] = k; });
 

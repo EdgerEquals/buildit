@@ -78,7 +78,7 @@
     // tier 1: the piece-by-piece questions (most important after unlock); tier 2 (idle, PHI^-2 apart, usage-ordered):
     // chat poll + live line, orbit emojis, the ratio pump; tier 3: DJ engine + zoom mark prefetch. DJ itself loads on tap.
     // the learner model and the quiz orb load with the questions (tier 1), in order: model, orb, then the questions
-    if (!window.Pieces) { ['js/learner.js?v=2', 'js/quiz-orb.js?v=2', 'js/pathways.js?v=2', 'js/pieces.js?v=4'].forEach((u) => { const sp = document.createElement('script'); sp.src = u; sp.async = false; document.head.appendChild(sp); }); }
+    if (!window.Pieces) { ['js/learner.js?v=3', 'js/quiz-orb.js?v=3', 'js/onboard.js?v=1', 'js/pathways.js?v=3', 'js/pieces.js?v=5'].forEach((u) => { const sp = document.createElement('script'); sp.src = u; sp.async = false; document.head.appendChild(sp); }); }
     else document.dispatchEvent(new CustomEvent('bi:open'));
     Tiers.add(2, startChat, 'chat', false);
     if (Tiers.script) { Tiers.script('js/orbit.js?v=1', 2, null, 'orbit'); Tiers.script('js/ratio-pump.js?v=1', 2, { 'data-site': 'buildit', 'data-freq': '0.75' }, 'pump', false); }
@@ -225,7 +225,7 @@
     if (S.started && S.qi >= STEPS.length) return done();
     panel('q-start');
   }
-  $('q-go').onclick = () => { $('pz').hidden = true; S.started = true; if (S.qi >= STEPS.length) S.qi = 0; saveProgress(); panel('q-quiz'); renderQ(); };
+  $('q-go').onclick = () => { if (window.Onboard && !Onboard.done()) { Onboard.start(); return; } $('pz').hidden = true; S.started = true; if (S.qi >= STEPS.length) S.qi = 0; saveProgress(); panel('q-quiz'); renderQ(); };
   $('q-again').onclick = () => { S.qi = 0; saveProgress(); panel('q-quiz'); renderQ(); };
   const palHTML = (p) => '<span class="pal" style="--pb:' + p.b + ';--ps:' + p.s + ';--pa:' + p.a + ';--pa2:' + p.a2 + ';--pt:' + p.tx + '"><span class="ph1"><i></i><b></b></span><span class="pbody"><span class="ln1"></span><span class="ln2"></span><span class="pbtn">Go</span></span><span class="sw"><i style="background:' + p.b + '"></i><i style="background:' + p.s + '"></i><i style="background:' + p.a + '"></i><i style="background:' + p.a2 + '"></i><i style="background:' + p.tx + '"></i></span></span>';
   function tileHTML(q, o) { return q.type === 'pal' ? palHTML(o.pal) + '<span class="txt"></span>' : '<span class="emo" aria-hidden="true"></span><span class="txt"></span>'; }
