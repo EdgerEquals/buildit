@@ -382,7 +382,7 @@ def relay_stop():
     return True
 
 
-# ---- permissions (training wheels, mirrors Bonnie's setup; see README "Permissions (training wheels)") ----
+# ---- permissions (training wheels, mirrors the other chat page's setup; see README "Permissions (training wheels)") ----
 PERM_FILE = os.path.join(HERE, 'permissions.json')
 PROPOSALS_FILE = os.path.join(STATE_DIR, 'proposals.json')   # the user's change requests waiting for Danny (0600, never committed)
 EDIT_MODES = ('propose-only', 'allow-listed')

@@ -55,7 +55,7 @@
     sessionStorage.removeItem(SKEY); key = null; cfg = null; msgs.clear(); $('log').innerHTML = ''; lastLogText = '';
     clearTimeout(pollTimer); stopLive(); chatStarted = false;
     document.title = 'Private page'; $('h-title').textContent = 'My page';
-    $('screen-app').hidden = true; $('gate').hidden = false;
+    $('screen-app').hidden = true; $('gate').hidden = false; document.dispatchEvent(new CustomEvent('bi:lock'));
     const err = $('login-error'); if (msg) { err.textContent = msg; err.hidden = false; } else err.hidden = true;
     showGate('login'); $('pw').focus();
   }
@@ -71,11 +71,46 @@
     document.querySelectorAll('[data-host]').forEach((e) => { e.textContent = HOST(); });
     $('f-credit').textContent = 'Made by ' + HOST() + ', with help from Simmie';
     $('q-hello').textContent = 'Hey ' + NAME() + '!';
-    $('q-lead').textContent = "Let's build your page together. Answer a few quick questions in three parts. Tap the one you like, or roll for new options. Nothing here is public: only " + HOST() + ' sees your answers.';
+    $('q-lead').textContent = "Let's build your page together. Everything on your screen right now (your bot, the orbiting emojis, the light, the wave, the DJ and the colours) is a piece you can keep or change. Nothing here is public: only " + HOST() + ' sees your answers, and nothing changes until ' + HOST() + ' says yes.';
+    setBotName();
     await loadProgress(); quizStart();
     await loadPending();
-    Tiers.add(2, startChat, 'chat');             // tier 2: chat poll + live line, after the questions are up
-    Tiers.prefetch('img/mark-head.svg?v=1');   // tier 3: part 3's first preview
+    // tier 1: the piece-by-piece questions (most important after unlock); tier 2 (idle, PHI^-2 apart, usage-ordered):
+    // chat poll + live line, orbit emojis, the ratio pump; tier 3: DJ engine + zoom mark prefetch. DJ itself loads on tap.
+    if (!window.Pieces) { const sp = document.createElement('script'); sp.src = 'js/pieces.js?v=1'; sp.async = true; document.head.appendChild(sp); }
+    else document.dispatchEvent(new CustomEvent('bi:open'));
+    Tiers.add(2, startChat, 'chat', false);
+    if (Tiers.script) { Tiers.script('js/orbit.js?v=1', 2, null, 'orbit'); Tiers.script('js/ratio-pump.js?v=1', 2, { 'data-site': 'buildit', 'data-freq': '0.75' }, 'pump', false); }
+    Tiers.add(3, () => { const l = document.createElement('link'); l.rel = 'prefetch'; l.href = 'js/autodj.js?v=1'; document.head.appendChild(l); }, 'prefetch autodj');
+    Tiers.prefetch('img/mark-head.svg?v=1');   // tier 3: an extra-questions preview
+  }
+  function setBotName() { document.querySelectorAll('.botav').forEach((im) => { if (im.id === 'h-av') { im.alt = BOT(); im.title = BOT(); } }); }
+  // ---- API for js/pieces.js (same key, same relay, same encrypted log; nothing new leaves the page) ----
+  window.BI = {
+    ready: () => !!key, host: () => HOST(), name: () => NAME(), bot: () => BOT(),
+    enc: (o) => C.encryptJSON(key, o), dec: (o) => C.decryptJSON(key, o),
+    async send(text, extra) { const m = { id: newId(), ts: Date.now(), from: 'user', text, ...(extra || {}) }; addMsg(m, 'pending'); render(); await deliver(msgs.get(m.id)); return msgs.get(m.id).state; },
+    state: (id) => (msgs.get(id) || {}).state
+  };
+  // ---- DJ (sound): the engine (js/autodj.js) loads only when the DJ panel is first opened ----
+  let djLoaded = false;
+  $('dj-pill').onclick = () => {
+    const pop = $('dj-pop'), open = pop.hidden; pop.hidden = !open; $('dj-pill').setAttribute('aria-expanded', String(open));
+    if (open && window.Adapt) Adapt.note('dj', 'open');
+    if (open && !djLoaded) { djLoaded = true; const sc = document.createElement('script'); sc.src = 'js/autodj.js?v=1'; sc.async = true; document.head.appendChild(sc); }
+  };
+  new MutationObserver(() => $('dj-pill').classList.toggle('on', $('dj-play').getAttribute('aria-pressed') === 'true')).observe($('dj-play'), { attributes: true, attributeFilter: ['aria-pressed'] });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('dj-pop').hidden) { $('dj-pop').hidden = true; $('dj-pill').setAttribute('aria-expanded', 'false'); $('dj-pill').focus(); } });
+  // ---- Lite: the lighter, calmer version of the page (on-device preference) ----
+  function liteSync() { const on = !!(window.Adapt && Adapt.lite()); $('lite-btn').setAttribute('aria-pressed', String(on)); }
+  $('lite-btn').onclick = () => { if (!window.Adapt) return; Adapt.setLite(!Adapt.lite()); liteSync(); if (!Adapt.lite() && Tiers.script && !window.Orbit) Tiers.script('js/orbit.js?v=1', 2, null, 'orbit'); };
+  liteSync();
+  // ---- status light = message-status layer: idle / new / from Danny / urgent (a question waiting) ----
+  function ledState() {
+    const list = [...msgs.values()], led = $('f-led'); if (!led) return;
+    const waitingQ = list.some((m) => m.kind === 'question' && answerFor(m) === null);
+    const unseen = !$('chat-new').hidden, lastNew = list.filter((m) => m.from !== 'user').sort((a, b) => a.ts - b.ts).pop();
+    led.dataset.st = waitingQ ? 'urgent' : unseen && lastNew && lastNew.from === 'dad' ? 'dad' : unseen ? 'new' : '';
   }
   function startChat() { if (chatStarted || !key) return; chatStarted = true; render(); pollLog(); startLive(); }
   function tab(which) {
@@ -83,7 +118,7 @@
     $('view-q').hidden = !q; $('view-c').hidden = q;
     $('tab-q').classList.toggle('on', q); $('tab-c').classList.toggle('on', !q);
     $('tab-q').setAttribute('aria-selected', String(q)); $('tab-c').setAttribute('aria-selected', String(!q));
-    if (!q) { $('chat-new').hidden = true; startChat(); render(); }
+    if (!q) { $('chat-new').hidden = true; startChat(); render(); if (window.Adapt) Adapt.note('chat', 'open'); }
     window.scrollTo(0, 0);
   }
   $('tab-q').onclick = () => tab('q'); $('tab-c').onclick = () => tab('c');
@@ -127,7 +162,7 @@
     O('Magic and wizards', '🪄'), O('Ancient history', '🏛️'), O('Coding and computers', '💻'), O('Drones', '🚁'), O('Martial arts', '🥋'),
     O('Cooking', '🍳'), O('Volcanoes', '🌋'), O('Animals', '🐾'), O('Inventions', '💡'), O('Space', '🪐'), O('Knights and castles', '🏰'),
     O('Skateboarding', '🛹'), O('Football', '🏉'), O('Science experiments', '🧪'), O('Art and drawing', '🎨'), O('Trains', '🚂'), O('Sharks', '🦈')];
-  // Part 2: colour palettes, two side by side + Roll (Bonnie's questionnaire set-up). bg, surface, accent, accent 2, text
+  // Part 2: colour palettes, two side by side + Roll (the questionnaire set-up). bg, surface, accent, accent 2, text
   const PALS = [
     P('Navy', '#0B1A33', '#102447', '#9FB8E0', '#1B3A6B', '#FFFFFF'), P('Night Ops', '#0B0F0A', '#1A2418', '#6B8E23', '#C2B280', '#E8EDE3'), P('Stealth', '#050505', '#161616', '#E10600', '#7A7A7A', '#F2F2F2'),
     P('Deep Space', '#05060F', '#141A33', '#7B5CFF', '#00D1FF', '#EDEBFF'), P('Ocean Depths', '#021B26', '#06384A', '#00B3B3', '#7FE7DC', '#E6FBFF'),
@@ -187,13 +222,13 @@
     if (S.started && S.qi >= STEPS.length) return done();
     panel('q-start');
   }
-  $('q-go').onclick = () => { S.started = true; if (S.qi >= STEPS.length) S.qi = 0; saveProgress(); panel('q-quiz'); renderQ(); };
+  $('q-go').onclick = () => { $('pz').hidden = true; S.started = true; if (S.qi >= STEPS.length) S.qi = 0; saveProgress(); panel('q-quiz'); renderQ(); };
   $('q-again').onclick = () => { S.qi = 0; saveProgress(); panel('q-quiz'); renderQ(); };
   const palHTML = (p) => '<span class="pal" style="--pb:' + p.b + ';--ps:' + p.s + ';--pa:' + p.a + ';--pa2:' + p.a2 + ';--pt:' + p.tx + '"><span class="ph1"><i></i><b></b></span><span class="pbody"><span class="ln1"></span><span class="ln2"></span><span class="pbtn">Go</span></span><span class="sw"><i style="background:' + p.b + '"></i><i style="background:' + p.s + '"></i><i style="background:' + p.a + '"></i><i style="background:' + p.a2 + '"></i><i style="background:' + p.tx + '"></i></span></span>';
   function tileHTML(q, o) { return q.type === 'pal' ? palHTML(o.pal) + '<span class="txt"></span>' : '<span class="emo" aria-hidden="true"></span><span class="txt"></span>'; }
   function renderQ() {
     const st = STEPS[S.qi], q = st.q, a = A(q), part = PARTS[st.part - 1];
-    $('q-phase').textContent = 'Part ' + st.part + ' of 3 · ' + (st.part === 3 ? 'Pieces of ' + HOST() + '’s dashboard' : part.name);
+    $('q-phase').textContent = 'Extra questions · part ' + st.part + ' of 3 · ' + (st.part === 3 ? 'Pieces of ' + HOST() + '’s dashboard' : part.name);
     $('q-dots').innerHTML = part.qs.map((x, i) => '<i class="' + (i < st.idx ? 'done' : i === st.idx ? 'now' : '') + '"></i>').join('');
     $('q-count').textContent = 'Question ' + (st.idx + 1) + ' of ' + part.qs.length;
     $('q-text').textContent = (q.type === 'yn' && q.e ? q.e + ' ' : '') + (st.part === 3 ? q.q + '?' : q.q);
@@ -220,7 +255,7 @@
   }
   [0, 1].forEach((i) => {
     const t = $('t' + i);
-    t.onclick = () => { const q = STEPS[S.qi].q; A(q).pick = i; renderQ(); setTimeout(advance, reduce ? 150 : 520); };
+    t.onclick = () => { const q = STEPS[S.qi].q; A(q).pick = i; renderQ(); setTimeout(advance, Tiers.ms ? Tiers.ms(reduce ? -4 : -1.5) : 520); };   // PHI^(-1.5 + step) s, PHI^(-4 + step) s reduced
   });
   document.querySelectorAll('.roll').forEach((b) => {
     b.onclick = () => {
@@ -377,14 +412,14 @@
     const cur = msgs.get(m.id); if (cur && cur.state === 'logged') return false;
     const from = m.from === 'bot' || m.from === 'dad' ? m.from : 'user';
     const rec = { id: m.id, ts: +m.ts || Date.now(), from, text: m.text, state };
-    if (m.kind === 'answers' && from === 'user') { rec.kind = 'answers'; rec.part = +m.part || 0; }
+    if (m.kind === 'answers' && from === 'user') { rec.kind = 'answers'; rec.part = typeof m.part === 'string' ? m.part.slice(0, 40) : (+m.part || 0); }
     if (m.kind === 'rename-bot' && from === 'user' && typeof m.name === 'string') { rec.kind = 'rename-bot'; rec.name = m.name.slice(0, 40); }
     if (from !== 'user' && m.kind === 'question') {
       rec.kind = 'question'; rec.options = Array.isArray(m.options) && m.options.length ? m.options.map(String).filter((o) => o && o !== ASK).slice(0, 2) : ['Yes', 'No'];
       if (rec.options.length < 2) rec.options = ['Yes', 'No'];
     }
     if (from === 'user' && m.reply_to) { rec.reply_to = String(m.reply_to); rec.answer = String(m.answer || ''); if (m.comment) rec.comment = String(m.comment); }
-    msgs.set(m.id, rec); return !cur && from !== 'user';
+    msgs.set(m.id, rec); setTimeout(ledState, 0); return !cur && from !== 'user';
   }
   const senderName = (from) => (from === 'dad' ? HOST() : BOT());
   const ASK = 'Ask more';
@@ -440,7 +475,7 @@
     const log = $('log'); if (!log || !key) return;
     const list = [...msgs.values()].sort((a, b) => a.ts - b.ts); log.innerHTML = '';
     const rn = list.filter((m) => m.kind === 'rename-bot' && m.state !== 'failed').pop(); if (rn && cfg) cfg.bot = rn.name;
-    $('bot-name').textContent = BOT();
+    $('bot-name').textContent = BOT(); setBotName(); ledState();
     if (!list.length) { const e = document.createElement('div'); e.className = 'empty'; e.innerHTML = '<p class="big">Hi! 👋</p><p></p>'; e.lastChild.textContent = 'Type below and press Send. ' + BOT() + ' will reply here.'; log.appendChild(e); }
     let day = '';
     for (const m of list) {
@@ -451,7 +486,7 @@
       if (m.kind === 'rename-bot') { b.className = 'msg sys'; b.textContent = '✏️ You renamed your bot to “' + m.name + '”'; log.appendChild(b); continue; }
       if (m.kind === 'answers') {
         const det = document.createElement('details'), sm = document.createElement('summary'), body = document.createElement('div');
-        sm.textContent = '📋 Your answers, part ' + (m.part || '?'); body.textContent = m.text.replace(/^\[[^\]]*\]\s*/, ''); det.appendChild(sm); det.appendChild(body); b.appendChild(det);
+        sm.textContent = typeof m.part === 'string' ? '📋 Your answers: ' + m.part : '📋 Your answers, part ' + (m.part || '?'); body.textContent = m.text.replace(/^\[[^\]]*\]\s*/, ''); det.appendChild(sm); det.appendChild(body); b.appendChild(det);
       } else if (m.reply_to) {
         const qm = msgs.get(m.reply_to), qq = document.createElement('span'); qq.className = 'quote'; qq.textContent = 'Answer to ' + (qm ? senderName(qm.from) + ': ' + qm.text : 'a question'); b.appendChild(qq);
         b.appendChild(document.createTextNode(m.comment ? m.answer + ': ' + m.comment : m.answer));

@@ -27,8 +27,21 @@ log.enc.json in this repo  <--chat.py append (git push)--  the bot's routine
   by side, Roll swaps one), part 3 yes/no on pieces of Danny's dashboard with a tiny CSS preview each, optional note
   per question. Progress is kept encrypted in localStorage. Each finished part is sent as ONE encrypted message
   (`kind:'answers'`, split if long), like a chat message, so it lands in the encrypted log.
-* **Light:** system fonts, ~60 KB HTML/CSS/JS (~19 KB gzipped), CSS-only previews, one 4 KB SVG. Load tiers
-  (`js/load-tiers.js`): questions first, chat poll + live line in tier 2, the mark prefetch in tier 3.
+* **Piece by piece** (`js/pieces.js`, loaded after unlock): every piece already on screen (bot avatar, orbit emojis,
+  status light, tide line, DJ, colours, the page's rhythm) gets a card with its live parameters and Keep / Change per
+  parameter, then a short physics challenge (period, frequency, phase, amplitude, threshold, wavelength, damping,
+  resonance, octaves, equal-power fades, the golden ratio). Each finished piece is sent encrypted as `kind:'answers'`
+  (propose-only: nothing changes until Danny says yes). The old three-part questions are under "Extra questions".
+* **Timing:** ONE knob, CSS `--own-step` (default .25): every period is PHI^(n + own step) s. `img/bot-avatar.svg` carries
+  the same value. `js/ratio-pump.js` (shared file, site dial 0.75) scales every CSS animation by one rate.
+* **Sound:** `js/autodj.js` (generated Web Audio auto-DJ, the same engine as Danny's pages, on this page's ladder) loads
+  only when the DJ panel is opened; nothing plays before a tap.
+* **Light:** system fonts, CSS-only motion. Load tiers (`js/load-tiers.js`, every gap a phi step): page script first,
+  pieces after unlock, then one idle slot each PHI^-2 apart for chat / orbit / pump (ordered by the on-device usage
+  loop), then prefetch. **Lite** (footer button, default on for save-data / 2g): no decorative motion or loads.
+* **Usage loop** (`js/adapt.js`): on-device only (localStorage `buildit.adapt`), counts which parts are opened / tapped
+  (never text, chat, answers or passwords; never sent). Shared schema v1 documented in the file; adapter point for the
+  shared `js/phi-adapt.js` (load it first; `window.PhiAdapt` takes over).
 
 ## Permissions (training wheels): `permissions.json` -> `edit_mode`
 * `propose-only` (default): the user can ASK for changes; nothing they ask changes anything. `chat.py context` prints

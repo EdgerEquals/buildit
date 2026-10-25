@@ -2,10 +2,20 @@
    WCAG (checked): white --tx on --bg #0B1A33 17.4, on --sf #102447 15.4, on --sf2 #1B3A6B 11.3, on --me #24467F 9.3;
    --mu #9FB8E0 on --bg 8.6, on --sf 7.6, on --sf2 5.6; button text --bg on --ac #9FB8E0 8.6, on --ac2 #E3ECFA 14.6;
    --ok on --sf 8.5, --bad on --sf 7.5; UI borders --ln #5A7DB5 vs --sf 3.7, vs --bg 4.2 (>= 3:1). No pink.
-   Motion: transform/opacity only, PHI^n periods (2.618 / 4.236 / 6.854 / 11.09 s), off under reduced motion. */
+   Motion: transform/opacity only, every period on this page's own ladder PHI^(n + --own-step), moves are phi ratios,
+   golden-angle negative delays, off under reduced motion; js/ratio-pump.js scales every CSS animation by one rate. */
 :root{--bg:#0B1A33;--sf:#102447;--sf2:#1B3A6B;--ln:#5A7DB5;--tx:#FFFFFF;--mu:#9FB8E0;--ac:#9FB8E0;--ac2:#E3ECFA;--ok:#7FD1A8;--bad:#FF9B73;--me:#24467F;
-  --r:14px;--ph2:2.618s;--ph3:4.236s;--ph4:6.854s;--ph5:11.09s;
+  --r:14px;
+  /* THE ONE TIMING KNOB: this page's own phi ladder. Every period = PHI^(n + --own-step) s. Default .25 (a quarter step
+     slower than the base ladder): +/-.5 would land on the other assistant's half-step ladder, so .25 keeps all three
+     ladders apart. img/bot-avatar.svg carries the same value (an <img> can't read page variables). Fallbacks = step .25. */
+  --own-step:.25;--k:1.127838;
+  --ph-4:.1645s;--ph-3:.2663s;--ph-2:.4308s;--ph-1:.6970s;--ph0:1.1278s;--ph1:1.8249s;--ph2:2.953s;--ph3:4.778s;--ph4:7.730s;--ph5:12.508s;--ph6:20.238s;--ph7:32.746s;--ph8:52.984s;--ph9:85.731s;
   font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;color:var(--tx);background:var(--bg)}
+@supports (width:calc(pow(2,1)*1px)){:root{--k:pow(1.6180339887,var(--own-step));
+  --ph-4:calc(.145898s*var(--k));--ph-3:calc(.236068s*var(--k));--ph-2:calc(.381966s*var(--k));--ph-1:calc(.618034s*var(--k));--ph0:calc(1s*var(--k));
+  --ph1:calc(1.618034s*var(--k));--ph2:calc(2.618034s*var(--k));--ph3:calc(4.236068s*var(--k));--ph4:calc(6.854102s*var(--k));--ph5:calc(11.09017s*var(--k));
+  --ph6:calc(17.944272s*var(--k));--ph7:calc(29.034442s*var(--k));--ph8:calc(46.978714s*var(--k));--ph9:calc(76.013156s*var(--k))}}
 *{box-sizing:border-box}
 html,body{margin:0;min-height:100%}
 body{background:var(--bg);-webkit-text-size-adjust:100%;line-height:1.45}
@@ -58,19 +68,19 @@ button{cursor:pointer}
 .phase{margin:0;font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ac2);font-weight:700}
 .dots{display:flex;flex-wrap:wrap;gap:4px;margin:8px 0}
 .dots i{width:8px;height:8px;border-radius:50%;background:var(--ln)}
-.dots i.done{background:var(--ac)}.dots i.now{background:var(--ac2);transform:scale(1.3)}
+.dots i.done{background:var(--ac)}.dots i.now{background:var(--ac2);transform:scale(1.272)}
 .count{margin:0;color:var(--mu);font-size:.9rem}
 .qtext{font-size:clamp(1.15rem,4.4vw,1.45rem);margin:6px 0 12px!important}
 .pdesc{color:var(--mu);margin:-4px 0 12px}
 .choices{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .choice{display:flex;flex-direction:column;min-width:0}
-.tile{position:relative;flex:1;min-height:120px;border:2px solid var(--ln);border-radius:var(--r);background:var(--sf2);padding:14px 10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center;transition:transform .2s,border-color .2s}
+.tile{position:relative;flex:1;min-height:120px;border:2px solid var(--ln);border-radius:var(--r);background:var(--sf2);padding:14px 10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center;transition:transform var(--ph-3),border-color var(--ph-3)}
 .tile:hover{border-color:var(--ac)}
-.tile:active{transform:scale(.97)}
+.tile:active{transform:scale(.9721)}
 .tile.picked{border-color:var(--ac2);box-shadow:0 0 0 3px rgba(227,236,250,.3)}
 .tile .emo{font-size:2rem;line-height:1}
 .tile .txt{font-weight:700;font-size:1rem;overflow-wrap:anywhere}
-.tile.swap{animation:swap .45s ease-out}
+.tile.swap{animation:swap var(--ph-2) ease-out}
 @keyframes swap{from{transform:rotateY(80deg);opacity:.2}to{transform:none;opacity:1}}
 .roll{margin-top:8px;background:var(--sf2);color:var(--tx);border:1px solid var(--ln);font-weight:600;padding:8px}
 .yn .roll{visibility:hidden}
@@ -141,8 +151,8 @@ button{cursor:pointer}
 .pv-leds span:nth-child(2) i{animation-duration:var(--ph3);background:#0AF2FF}.pv-leds span:nth-child(3) i{animation-duration:var(--ph4);background:#F2A541}
 @keyframes blink{from{opacity:.25}to{opacity:1}}
 .pv-dj{display:flex;gap:4px;align-items:flex-end;height:44px}
-.pv-dj i{width:6px;height:100%;background:#8FB3D1;transform-origin:bottom;animation:bar .9s ease-in-out infinite alternate}
-.pv-dj i:nth-child(2n){animation-duration:1.4s}.pv-dj i:nth-child(3n){animation-duration:.6s}
+.pv-dj i{width:6px;height:100%;background:#8FB3D1;transform-origin:bottom;animation:bar var(--ph0) ease-in-out infinite alternate}
+.pv-dj i:nth-child(2n){animation-duration:var(--ph1)}.pv-dj i:nth-child(3n){animation-duration:var(--ph-1)}
 .pv-space{position:absolute;inset:0;background:radial-gradient(circle at 30% 40%,#1F2C55,transparent 60%),radial-gradient(circle at 75% 70%,#3A1F55,transparent 55%),#03040A}
 .pv-space i{position:absolute;width:2px;height:2px;background:#fff;border-radius:50%;animation:blink var(--ph3) ease-in-out infinite alternate}
 .pv-lane{position:absolute;left:0;top:50%;margin-top:-.7em;font-size:1.3rem;animation:cross var(--ph4) linear infinite}
@@ -150,7 +160,7 @@ button{cursor:pointer}
 .pv-float span{position:absolute;font-size:1.2rem;animation:floaty var(--ph4) ease-in-out infinite alternate}
 @keyframes floaty{to{transform:translateY(-16px) rotate(12deg)}}
 .pv-waves i{position:absolute;left:50%;top:50%;width:30px;height:30px;margin:-15px;border:2px solid #0AF2FF;border-radius:50%;animation:wave var(--ph3) ease-out infinite}
-.pv-waves i:nth-child(2){animation-delay:-1.4s}.pv-waves i:nth-child(3){animation-delay:-2.8s}
+.pv-waves i:nth-child(1){animation-delay:calc(var(--ph3)*-.618)}.pv-waves i:nth-child(2){animation-delay:calc(var(--ph3)*-.236)}.pv-waves i:nth-child(3){animation-delay:calc(var(--ph3)*-.854)}
 @keyframes wave{from{transform:scale(.5);opacity:1}to{transform:scale(3.2);opacity:0}}
 .pv-quiz{display:flex;gap:8px}.pv-quiz span{border:2px solid #5A7DB5;border-radius:8px;padding:6px 10px;font-size:.85rem}
 .pv-quiz span:first-child{border-color:#E3ECFA}
@@ -179,7 +189,7 @@ button{cursor:pointer}
 .askf{display:flex;gap:6px;margin-top:6px}.askf textarea{flex:1;min-width:0;border:1px solid var(--ln);border-radius:8px;background:var(--bg);padding:6px;font-size:16px}
 .typing{padding:0 14px 6px;color:var(--mu);font-size:.85rem}
 .tdots i{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--mu);margin:0 1px;animation:blink var(--ph2) infinite alternate}
-.tdots i:nth-child(2){animation-delay:-.9s}.tdots i:nth-child(3){animation-delay:-1.8s}
+.tdots i:nth-child(1){animation-delay:calc(var(--ph2)*-.618)}.tdots i:nth-child(2){animation-delay:calc(var(--ph2)*-.236)}.tdots i:nth-child(3){animation-delay:calc(var(--ph2)*-.854)}
 .sendrow{display:flex;gap:8px;padding:10px;border-top:1px solid var(--ln);align-items:flex-end}
 .sendrow textarea{resize:none;max-height:120px}
 .sendrow .btn{margin:0}
@@ -187,7 +197,11 @@ button{cursor:pointer}
 /* ---------- basic footer ---------- */
 .foot{border-top:1px solid var(--ln);background:var(--sf);color:var(--mu);font-size:.82rem}
 .foot .hc{justify-content:center;flex-wrap:wrap;gap:6px;padding:10px 14px calc(10px + env(safe-area-inset-bottom))}
-.led{width:8px;height:8px;border-radius:50%;background:var(--ok);animation:blink var(--ph3) ease-in-out infinite alternate}
+/* status light = message-status layer (rule 7) on this page's ladder: idle PHI^5 breathe, new PHI^3, unread from Danny PHI^2,
+   urgent PHI^1 (all + own step). Brightness swings PHI^-2 -> 1. Never changes any other motion. */
+.led{width:8px;height:8px;border-radius:50%;background:var(--ok);animation:led var(--ph5) ease-in-out infinite alternate}
+.led[data-st=new]{animation-duration:var(--ph3)}.led[data-st=dad]{animation-duration:var(--ph2)}.led[data-st=urgent]{animation-duration:var(--ph1)}
+@keyframes led{from{opacity:.382}to{opacity:1}}
 .led.off{background:var(--bad);animation:none}
 
 @media (max-width:360px){.choices{gap:8px}.tile{min-height:104px;padding:10px 6px}.tile .txt{font-size:.92rem}}
@@ -204,8 +218,104 @@ body.paused *{animation-play-state:paused!important}
 .renmsg{margin:6px 0 0;font-size:.82rem;color:var(--ok);min-height:1em}
 .msg.sys{align-self:center;background:transparent;border-style:dashed;color:var(--mu);font-size:.82rem}
 /* bot avatar slot: ONE file, img/bot-avatar.svg (square, SVG with its own CSS/SMIL animation, no JS); same spot as
-   Simmie's avatar on Bonnie's pages (beside the greeting, and in the chat/footer). Shown at 56 / 28 / 22 px. */
+   the assistant's avatar on the other chat pages (beside the greeting, and in the chat/footer). Shown at 56 / 28 / 22 px. */
 .leadrow{display:flex;align-items:center;gap:12px;margin:0 0 8px}
 .botav{display:block;flex:none;width:56px;height:56px;object-fit:contain}
 .botav.sm{width:28px;height:28px}.botav.xs{width:22px;height:22px}
 .botbar .bn{display:flex;align-items:center;gap:8px;min-width:0}
+
+/* ================= calm header / footer pieces (live page, stripped down) ================= */
+.head .botav.hd{width:34px;height:34px}
+.djpill{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--ln);background:transparent;border-radius:999px;padding:5px 10px;font-size:.85rem;color:var(--mu);white-space:nowrap;flex:none}
+.djpill .djl{width:7px;height:7px;border-radius:50%;background:var(--ln)}
+.djpill.on .djl{background:var(--ok)}
+.djpill[aria-expanded=true]{color:var(--tx);border-color:var(--ac)}
+.djpop{max-width:880px;margin:0 auto;padding:0 14px 10px}
+.djbox{background:var(--bg);border:1px solid var(--ln);border-radius:12px;padding:10px 12px;font-size:.85rem;color:var(--mu)}
+.djrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.djbox .dj-play{border:1px solid var(--ac);background:var(--sf2);color:var(--tx);border-radius:999px;padding:6px 14px;font-weight:700;display:inline-flex;gap:6px;align-items:center}
+.djbox .dj-play[aria-pressed=true]{background:var(--ac);color:var(--bg)}
+.dj-led{width:8px;height:8px;border-radius:50%;background:var(--ln);opacity:.618}
+.dj-led.on{background:var(--ok);opacity:1}.dj-led.on2{background:var(--ac2);opacity:1}
+.djbox input[type=range]{flex:1;min-width:110px;accent-color:var(--ac)}
+.djbox .dj-read,.djbox .dj-pumps{margin:6px 0 0;font:12px/1.4 ui-monospace,Menlo,monospace;color:var(--mu)}
+.djbox details{margin-top:6px}.djbox summary{cursor:pointer}
+.dj-grp{border:0;margin:4px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.dj-grp legend{float:left;margin-right:6px;font-weight:700;color:var(--ac2)}
+.dj-grp label{display:inline-flex;align-items:center;gap:3px;border:1px solid var(--ln);border-radius:999px;padding:2px 8px;cursor:pointer}
+.dj-grp input{margin:0;accent-color:var(--ac)}
+.litebtn{border:1px solid var(--ln);background:transparent;border-radius:999px;padding:2px 9px;font-size:.78rem;color:var(--mu)}
+.litebtn[aria-pressed=true]{color:var(--tx);border-color:var(--ac)}
+
+/* orbit emojis: three of the space set, in front of the content, under the header. Ellipse = two sine-eased swings
+   (x and y, same period, a quarter cycle apart); the sign of that quarter sets the direction. Path size is a ratio of
+   the screen (rx = 100vw/PHI^3, ry = 100vh/PHI^4, each emoji x PHI^-0.5 smaller). Travel PHI^(7..8 + step),
+   own-axis spin PHI^(6 + step), opacity pulse PHI^(5 + step) from PHI^-4 to PHI^-2 (faint, so text stays readable). Built by js/orbit.js (tier 2). */
+.orb-layer{position:fixed;left:0;right:0;top:0;bottom:0;z-index:15;pointer-events:none;overflow:hidden;transition:opacity var(--ph-1) ease}
+html.orb-away .orb-layer{opacity:0}
+.orb{position:absolute;left:61.8vw;top:38.2vh;width:0;height:0;transform:rotate(var(--tilt))}
+.orb-x{position:absolute;left:0;top:0;animation:orbX calc(var(--T)/2) cubic-bezier(.3642,0,.6358,1) var(--dx) infinite alternate}
+.orb-y{display:block;animation:orbY calc(var(--T)/2) cubic-bezier(.3642,0,.6358,1) var(--dy) infinite alternate}
+.orb-u{display:block;transform:translate(-50%,-50%) rotate(calc(-1*var(--tilt)))}
+.orb-e{display:block;font-size:24px;line-height:1;opacity:.1459;animation:orbP var(--ph5) ease-in-out var(--pd) infinite,orbS var(--ph6) linear var(--sd) infinite var(--sdir)}
+@keyframes orbX{from{transform:translateX(calc(-1*var(--rx)))}to{transform:translateX(var(--rx))}}
+@keyframes orbY{from{transform:translateY(calc(-1*var(--ry)))}to{transform:translateY(var(--ry))}}
+@keyframes orbS{to{transform:rotate(360deg)}}
+@keyframes orbP{0%,100%{opacity:.1459}38.2%,61.8%{opacity:.382}}
+@media (min-width:576px){.orb-e{font-size:28px}}
+
+/* footer tide line: a wave that flows sideways (PHI^6 + step per wavelength) and swells (PHI^4 + step, height x 1 +/- PHI^-2) */
+.foot{position:relative}
+.tide{position:absolute;left:0;right:0;top:-7px;height:8px;overflow:hidden;pointer-events:none}
+.tide i{position:absolute;left:0;top:0;width:200%;height:100%;transform-origin:50% 100%;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='8'%3E%3Cpath d='M0 6 Q20 0 40 6 T80 6' fill='none' stroke='%238FB3D1' stroke-width='1.5'/%3E%3C/svg%3E") repeat-x 0 0/80px 8px;
+  animation:tideF var(--ph6) linear infinite,tideS var(--ph4) ease-in-out calc(var(--ph4)*-.618) infinite alternate}
+@keyframes tideF{to{transform:translateX(-80px)}}
+@keyframes tideS{from{opacity:.618}to{opacity:1}}
+
+/* LITE: the much lighter version of every rich view (no orbit layer, no tide, no decorative loads; avatar still) */
+html.lite .orb-layer,html.lite .tide{display:none}
+html.lite *{animation-play-state:paused!important}
+@media (prefers-reduced-motion:reduce){.orb-layer,.tide{display:none}}
+
+/* ================= piece-by-piece questions + physics quiz ================= */
+.pz-card{background:var(--sf);border:1px solid var(--ln);border-radius:var(--r);padding:18px}
+.pz-head{display:flex;align-items:center;gap:12px;margin:4px 0 10px}
+.pz-head h2{margin:0;font-size:clamp(1.15rem,4.4vw,1.4rem)}
+.pz-demo{height:110px;border-radius:12px;border:1px solid var(--ln);background:#060F1F;margin:0 0 12px;position:relative;overflow:hidden;display:grid;place-items:center}
+.pz-demo img{width:88px;height:88px}
+.pz-lead{color:var(--mu);margin:0 0 10px}
+.pz-params{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.pz-p{border:1px solid var(--ln);border-radius:12px;padding:10px 12px;background:var(--sf2)}
+.pz-p .pl{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.pz-p .pl b{font-weight:700}
+.pz-p .pv{font:12.5px/1.4 ui-monospace,Menlo,monospace;color:var(--ac2)}
+.pz-p .ph{display:block;color:var(--mu);font-size:.85rem;margin-top:2px}
+.pz-ch{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.pz-ch button{border:1px solid var(--ln);background:var(--bg);border-radius:999px;padding:5px 12px;font-size:.88rem}
+.pz-ch button[aria-pressed=true]{background:var(--ac);color:var(--bg);border-color:var(--ac);font-weight:700}
+.pz-ch .sw{width:30px;height:30px;padding:0;border-radius:50%;border:2px solid var(--ln)}
+.pz-ch .sw[aria-pressed=true]{border-color:var(--ac2);box-shadow:0 0 0 3px rgba(227,236,250,.35)}
+.pz-ch input[type=color]{width:36px;height:30px;border:1px solid var(--ln);border-radius:8px;background:var(--bg);padding:1px}
+.pz-ch input[type=text]{border:1px solid var(--ln);border-radius:8px;background:var(--bg);padding:5px 8px;font-size:16px;min-width:0;width:9em}
+.pz-note{width:100%;margin-top:12px;border:1px solid var(--ln);border-radius:10px;background:var(--bg);padding:10px;font-size:16px;resize:vertical}
+.pz-q{margin:0}
+.pz-term{display:inline-block;font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ac2);font-weight:700;margin-bottom:6px}
+.pz-opts{display:grid;gap:8px;margin:10px 0}
+.pz-opts button{text-align:left;border:2px solid var(--ln);background:var(--sf2);border-radius:12px;padding:10px 12px;font-size:.98rem}
+.pz-opts button.right{border-color:var(--ok)}.pz-opts button.wrong{border-color:var(--bad)}
+.pz-fb{border-left:3px solid var(--ok);padding:6px 10px;margin:8px 0;background:rgba(127,209,168,.08);border-radius:0 8px 8px 0}
+.pz-fb.miss{border-left-color:var(--bad);background:rgba(255,155,115,.08)}
+.pz-score{color:var(--ok);font-weight:700}
+.pz-prog{display:flex;gap:4px;margin:6px 0}.pz-prog i{flex:1;height:5px;border-radius:3px;background:var(--ln)}
+.pz-prog i.done{background:var(--ac)}.pz-prog i.now{background:var(--ac2)}
+/* demos (same timing variables as the real pieces) */
+.dm-orbit{position:absolute;inset:0}
+.dm-orbit .orb{left:50%;top:50%}
+.dm-led{width:26px;height:26px;border-radius:50%;background:var(--ok);animation:led var(--ph5) ease-in-out infinite alternate}
+.dm-tide{position:absolute;left:0;right:0;top:50%;height:8px;overflow:hidden}.dm-tide i{position:absolute;left:0;top:0;width:200%;height:100%;background:inherit}
+.dm-sw{display:flex;gap:8px}.dm-sw i{width:34px;height:34px;border-radius:8px;border:1px solid rgba(255,255,255,.25)}
+.dm-ladder{display:flex;align-items:flex-end;gap:6px;height:84px}
+.dm-ladder i{width:14px;background:var(--ac);border-radius:3px 3px 0 0;opacity:.85}
+.dm-eq{display:flex;gap:4px;align-items:flex-end;height:50px}.dm-eq i{width:7px;height:100%;background:var(--ac);transform-origin:bottom;animation:bar var(--ph0) ease-in-out infinite alternate}
+.dm-eq i:nth-child(2n){animation-duration:var(--ph1)}.dm-eq i:nth-child(3n){animation-duration:var(--ph-1)}
