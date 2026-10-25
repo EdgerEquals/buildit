@@ -146,11 +146,16 @@
   async function load() { S = fresh(); try { var raw = localStorage.getItem(QK); if (raw) { var s = await BI.dec(JSON.parse(raw)); if (s && s.v === 1) S = s; } } catch (e) { localStorage.removeItem(QK); }
     if (S.qrev !== QREV) { S.quiz = {}; S.qrev = QREV; if (S.stage === 'quiz') { S.stage = 'params'; S.qi = 0; } } }   // questions were rewritten: old quiz answers would not match
   async function save() { try { localStorage.setItem(QK, JSON.stringify(await BI.enc(S))); } catch (e) {} }
-  function show(on) { ['q-start', 'q-quiz', 'q-break', 'q-done'].forEach(function (p) { if (on) $(p).hidden = true; }); $('pz').hidden = !on; if (!on) $('q-start').hidden = false; window.scrollTo(0, 0); }
+  function show(on) { if (!on) undrop();
+    ['q-start', 'q-quiz', 'q-break', 'q-done'].forEach(function (p) { if (on) $(p).hidden = true; }); $('pz').hidden = !on; if (!on) $('q-start').hidden = false; window.scrollTo(0, 0); }
 
   function prog(i) { var h = '<div class="pz-prog" aria-hidden="true">'; for (var k = 0; k < LIST.length; k++) h += '<i class="' + (k < i ? 'done' : k === i ? 'now' : '') + '"></i>'; return h + '</div>'; }
   function head(pc, i, sub) { return '<p class="phase">Piece ' + (i + 1) + ' of ' + LIST.length + ' · ' + sub + '</p>' + prog(i) + '<div class="pz-head"><span style="font-size:1.6rem" aria-hidden="true">' + pc.icon + '</span><h2>' + esc(pc.name) + '</h2></div>'; }
 
+  // auto help-orb drop (Kids Club standard): a piece about a background parameter with a visible part does a virtual drop
+  // of the orb on that part (QuizOrb.drop: the orb's own grow + help bubble); leaving the piece settles it back.
+  var PART_EL = { bot: 'h-av', orbit: '.orb-layer', light: 'f-led', tide: '.foot .tide', dj: 'dj-pill' };
+  function undrop() { if (window.QuizOrb && QuizOrb.release) QuizOrb.release(); }
   function renderParams() {
     var pc = LIST[S.i], el = $('pz'), a = S.ans[pc.id] = S.ans[pc.id] || {};
     el.innerHTML = head(pc, S.i, 'which way should it go?') + '<div class="pz-demo" id="pz-demo"></div><p class="pz-lead">' + esc(pc.lead) + '</p>' +
@@ -180,9 +185,11 @@
     $('pz-back').onclick = function () { if (S.i > 0) { S.i--; S.stage = 'params'; save(); renderParams(); window.scrollTo(0, 0); } };
     $('pz-next').onclick = function () { if (!pc.quiz.length) { finishPiece(); window.scrollTo(0, 0); return; } S.stage = 'quiz'; S.qi = 0; save(); renderQuiz(); window.scrollTo(0, 0); };
     if (window.Adapt) Adapt.note('piece-' + pc.id, 'open');
+    undrop(); if (PART_EL[pc.id] && window.QuizOrb && QuizOrb.drop) QuizOrb.drop(PART_EL[pc.id]);
   }
 
   function renderQuiz() {
+    undrop();
     var pc = LIST[S.i], qz = pc.quiz[S.qi], el = $('pz'), R = S.quiz[pc.id] = S.quiz[pc.id] || {}, prev = R[S.qi];
     el.innerHTML = head(pc, S.i, 'Arduino challenge ' + (S.qi + 1) + ' of ' + pc.quiz.length) + '<span class="pz-term" id="pz-term">' + esc(qz.open || (prev && prev.pick != null) ? qz.t : qz.tf ? 'True or false' : 'Your turn') + '</span><h3 class="pz-q">' + esc(qz.q) + '</h3><div id="pz-body"></div>' +
       '<div class="btnrow"><button type="button" class="btn bk" id="pz-qback">&larr; Back</button><button type="button" class="btn" id="pz-qnext" hidden>Next &rarr;</button></div>';
@@ -229,6 +236,7 @@
     return { lines: lines, right: right, asked: asked };
   }
   async function finishPiece() {
+    undrop();
     var pc = LIST[S.i], sm = summary(pc), el = $('pz');
     el.innerHTML = head(pc, S.i, 'done') + '<h2>Piece done! 🎉</h2>' +
       '<p class="sendstat" id="pz-stat">Sending your picks to ' + esc(BI.host()) + '…</p><div class="btnrow"><button type="button" class="btn bk" id="pz-dback">&larr; Back</button><button type="button" class="btn" id="pz-cont">' + (S.i < LIST.length - 1 ? 'Next piece &rarr;' : 'Finish') + '</button></div>';
@@ -240,6 +248,7 @@
     var s = $('pz-stat'); if (s) { s.className = 'sendstat ' + (st === 'failed' ? 'bad' : 'ok'); s.textContent = st === 'failed' ? 'Couldn’t send yet (no connection?). It’s saved in the chat. Tap Try again there.' : '✓ Sent to ' + BI.host() + ' (encrypted). Nothing changes until ' + BI.host() + ' says yes.'; }
   }
   function renderDone() {
+    undrop();
     var el = $('pz'), tot = 0, ok = 0;
     LIST.forEach(function (pc) { var s = summary(pc); tot += s.asked; ok += s.right; });
     el.innerHTML = '<h2>All pieces done! 🚀</h2><p class="pz-lead">' + esc(BI.host()) + ' has your picks for every piece and will say yes or no. You can go through any piece again, or ask ' + esc(BI.bot()) + ' something in the chat.</p>' +
@@ -254,7 +263,7 @@
     var go = $('pz-go'); go.onclick = function () { if (window.Onboard && !Onboard.done()) { Onboard.start(); return; } if (!LIST) LIST = PIECES(); LIST = PIECES(); show(true); if (S.i >= LIST.length) renderDone(); else if (S.stage === 'quiz') renderQuiz(); else renderParams(); };
   }
   document.addEventListener('bi:open', open);
-  document.addEventListener('bi:lock', function () { if (window.QuizOrb) QuizOrb.reset(); S = null; $('pz').hidden = true; $('pz').innerHTML = ''; });
+  document.addEventListener('bi:lock', function () { undrop(); if (window.QuizOrb) QuizOrb.reset(); S = null; $('pz').hidden = true; $('pz').innerHTML = ''; });
   window.Pieces = { open: open, list: function () { return PIECES(); } };
   open();
 })();

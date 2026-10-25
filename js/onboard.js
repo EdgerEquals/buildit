@@ -210,7 +210,9 @@
     s.textContent = '.ob-gate{border:1px solid var(--ac);border-radius:var(--r);padding:14px;margin:12px 0;background:var(--sf2)}.ob-gate h2{margin:4px 0 6px}.ob-gate .btnrow{margin-top:8px}' +
       '#q-start .btn[aria-disabled=true]{opacity:.5;cursor:not-allowed}';
     document.head.appendChild(s); }
-  function open() { if (!window.BI || !BI.ready()) return; css(); N = nload(); gate(); }
+  // the orb's own help text for each part comes from the same naming content (one source), so any drop on it can say it
+  function parts() { if (!window.QuizOrb || !QuizOrb.part) return; ITEMS.forEach(function (it) { if (it.id.indexOf('p-') !== 0) QuizOrb.part(it.sel, it.x); }); }
+  function open() { if (!window.BI || !BI.ready()) return; css(); N = nload(); parts(); gate(); }
   document.addEventListener('bi:open', open);
   document.addEventListener('bi:lock', function () { running = false; L = null; var c = $('ob-learn'); if (c) c.remove(); var g = $('ob-gate'); if (g) g.remove(); document.documentElement.classList.remove('ob-naming'); });
   window.Onboard = { done: done, start: start, learn: learnOpen, items: function () { return ITEMS.map(function (i) { return i.id; }); }, running: function () { return running; } };

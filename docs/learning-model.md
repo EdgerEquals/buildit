@@ -93,3 +93,18 @@ this, less of that", as a roll pair: the left box ("I want more of this") and th
 roll through things to learn or build (Arduino, naming things, building my page, sound, motion, colours, coding, circuits
 ...), and Lock it in (or Enter) confirms. Back keeps the picks. The
 answers go encrypted to the page owner as `kind:'answers'`, propose-only.
+
+## Grow on drop (core orb behaviour) and the auto drop on parameter questions
+
+`QuizOrb.drop(el, o)` is the orb's one drop handler (Kids Club core help orb standard, 2026-10-25 16:29 AWST). Whatever the
+orb is dropped on grows (`1 + (PHI-1) * orbSize/partSize`), comes forward over the orb layer with a glow ring, and the help
+bubble shows the orb's own help text for that part (registered with `QuizOrb.part(selector, text)`; the texts are the same
+ones the naming step teaches). It settles back through the same phi-ladder transition when the bubble closes, the orb moves
+away, or the caller leaves. Three callers, no grow code of their own:
+
+- **Real drops:** drag the orb onto any part of the page and let go.
+- **Virtual drops (auto drop):** a Keep/Change piece about a background parameter with a visible part (bot -> avatar, orbit
+  emojis, status light, tide line, DJ pill) drops the orb on that part when the piece opens, and leaving the piece
+  (Next, Back, finishing) settles it back. If the part isn't on screen, nothing happens.
+- **Spotlight:** `QuizOrb.spotlight(id, prompt)` = a drop with no bubble plus the orb's panel (the naming step, and the
+  "Is this the change you want?" prompt).

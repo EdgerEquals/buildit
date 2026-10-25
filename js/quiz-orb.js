@@ -9,7 +9,8 @@
    Reduced motion or Lite: no travel, a simple fade (time constant PHI^-3 s). The rAF loop runs only while p is moving.
    API: QuizOrb.ask(spec) · QuizOrb.home() · QuizOrb.intro() · QuizOrb.reset() · QuizOrb.spotlight(elementId, prompt, o)
      spec = { term, q, opts[], a, picked, explain, bot, onPick(k), onTap('easy'|'hard'), onDone(), locked, okLabel, metLabel }
-   POINT AND ENLARGE (spotlight): QuizOrb.spotlight(idOrSelector, prompt, o) points the orb at one part of the page: that
+   DROP: QuizOrb.drop(el, o) is the orb's one drop handler (real drag-and-drop, virtual drops and the spotlight all use it).
+   POINT AND ENLARGE (spotlight): QuizOrb.spotlight(idOrSelector, prompt, o) = a drop on one part + the orb's panel: that
    part grows (by 1 + (PHI-1) * orbSize/partSize, so small parts grow most and big strips only a little) and glows, the
    scrim leaves a soft hole around it, and the orb's panel sits on the far side of the screen from it. prompt is either a
    string (a yes / not-quite question, e.g. "Is this the change you want?", o.choices + o.onPick(k)) or an ask() spec.
@@ -51,6 +52,9 @@
       '.qorb-pan .qo-x{position:absolute;top:8px;right:8px;min-width:44px;min-height:34px;border:1px solid #5A7DB5;border-radius:999px;background:#0B1A33;color:#fff;font-size:.85rem}' +
       '.qorb-pan .qo-say{margin:0 0 8px;line-height:1.5}.qorb-pan .qo-sig{color:#9FB8E0;margin:0}' +
       '.qorb-pan button:focus-visible{outline:3px solid #E3ECFA;outline-offset:2px}' +
+      '[data-qdrop]{transition:transform var(--ph-1,.7s) cubic-bezier(.2,.9,.3,1.2),filter var(--ph-1,.7s);transform-origin:50% 50%}' +
+      '.qorb-bub{position:fixed;z-index:42;max-width:min(320px,calc(100vw - 24px));background:#102447;color:#fff;border:2px solid #9FB8E0;border-radius:14px;padding:10px 12px;font-size:.92rem;line-height:1.45;box-shadow:0 10px 30px rgba(0,0,0,.5)}' +
+      '.qorb-bub b{color:#E3ECFA}.qorb-bub button{display:block;margin:8px 0 0 auto;border:1px solid #9FB8E0;background:#9FB8E0;color:#0B1A33;border-radius:999px;padding:5px 14px;font-weight:700;min-height:36px}' +
       '.qorb-spot{transform:scale(var(--qspot,1.618));filter:drop-shadow(0 0 6px #E3ECFA) drop-shadow(0 0 14px #9FB8E0);transition:transform var(--ph-1,.7s) cubic-bezier(.2,.9,.3,1.2),filter var(--ph-1,.7s);transform-origin:50% 50%}' +
       '.qorb-calm .qorb-spot,.lite .qorb-spot{transform:none}' +
       '.qorb-ring{position:fixed;z-index:39;pointer-events:none;border-radius:14px;border:3px solid #E3ECFA;box-shadow:0 0 0 4px rgba(159,184,224,.45),0 0 28px 8px rgba(159,184,224,.7);opacity:0;transition:opacity var(--ph-2,.4s)}' +
@@ -111,7 +115,7 @@
   }
   function locked() { return !!(st && st.spec && st.spec.locked && st.spec.picked == null) || !!(st && st.hold); }
   function home() {
-    if (!st || st.t === 0) return; release(); go(0);
+    if (!st || st.t === 0) return; if (st.spot && !st.spot.bub) release(); go(0);
     var b = st.returnTo; st.returnTo = null; if (b && b.focus && document.contains(b)) try { b.focus({ preventScroll: true }); } catch (e) {}
   }
   function el(tag, cls, text) { var x = document.createElement(tag); if (cls) x.className = cls; if (text != null) x.textContent = text; return x; }
@@ -167,44 +171,98 @@
     st.pan = el('div', 'qorb-pan'); st.pan.hidden = true; st.pan.setAttribute('role', 'dialog'); st.pan.setAttribute('aria-modal', 'true');
     st.orb = el('button', 'qorb'); st.orb.type = 'button'; st.orb.id = 'quiz-orb'; st.orb.innerHTML = '<i aria-hidden="true">?</i>';
     st.orb.setAttribute('aria-label', 'Quiz orb. It brings the questions to the middle of the screen. Tap to open it.');
-    st.orb.onclick = function () { if (st.t === 1) { if (!locked()) home(); return; } if (st.spec && st.spec.picked == null) ask(st.spec); else intro(); };
+    st.orb.onclick = function () { if (st.dragged && Date.now() - st.dragged < Math.pow(PHI, -1 + OWN) * 1000) return; if (st.t === 1) { if (!locked()) home(); return; } if (st.spec && st.spec.picked == null) ask(st.spec); else intro(); };
     host.appendChild(st.scrim); host.appendChild(st.ring); host.appendChild(st.pan); host.appendChild(st.orb);
-    document.addEventListener('keydown', keys, true);
+    document.addEventListener('keydown', keys, true); dragInit();
     addEventListener('resize', function () { avoid(); place(); if (st.t === 1) { geo(); draw(); } });
     addEventListener('scroll', function () { avoid(); place(); }, { passive: true }); avoid();
     if (window.ResizeObserver) new ResizeObserver(function () { avoid(); }).observe(document.body);   // page content changed height
     return window.QuizOrb;
   }
   function reset() { if (!st) return; release(); st.hold = false; st.spec = null; st.t = 0; st.p = 0; st.v = 0; if (st.raf) cancelAnimationFrame(st.raf); st.raf = 0; st.pan.hidden = true; st.scrim.style.pointerEvents = 'none'; st.g = st.g || null; if (st.g) draw(); }
-  // ---- point and enlarge: one part of the page grows and glows while the orb asks about it ----
-  function find(id) { if (!id) return null; return document.getElementById(id) || (/^[.#\[]/.test(id) ? document.querySelector(id) : null); }
+  // ---- DROP (core help orb behaviour, Kids Club standard 2026-10-25 16:29 AWST): whatever the orb is dropped on grows ----
+  // drop(el, o) is the ONE handler. A real drop (dragging the orb onto a part), the questionnaire's virtual drop
+  // (QuizOrb.drop from js/pieces.js) and the spotlight below all call it; none of them has grow code of its own.
+  // Grow: scale 1 + (PHI-1) * orbSize/partSize (small parts grow most, big strips only a little), comes forward over the
+  // orb layer, glow ring; the help bubble shows the orb's own help text for that part (QuizOrb.part registry). Settles back
+  // through the same transition (phi-ladder timing) when the bubble closes, the orb moves away, or the caller leaves.
+  var PARTS = [];   // [{ sel, text, name }]: the orb's own help text per part; js/onboard.js and js/pieces.js register theirs
+  function part(sel, text, name) { for (var i = 0; i < PARTS.length; i++) if (PARTS[i].sel === sel) { PARTS[i].text = text; PARTS[i].name = name || PARTS[i].name; return; } PARTS.push({ sel: sel, text: text, name: name }); }
+  function partOf(node) {   // the registered part this node belongs to (the innermost one wins)
+    var best = null, bd = 1e9;
+    PARTS.forEach(function (pp) { var e = find(pp.sel); if (!e || !node || !e.contains(node)) return; var d = 0, n = node; while (n && n !== e) { d++; n = n.parentNode; } if (d < bd) { bd = d; best = { el: e, p: pp }; } });
+    return best;
+  }
+  function find(id) { if (!id) return null; if (id.nodeType) return id; return document.getElementById(id) || (/^[.#\[]/.test(id) ? document.querySelector(id) : null); }
   function place() {
     var s = st && st.spot; if (!s) return;
-    var r = s.el.getBoundingClientRect(), pad = 6; s.rect = r;
+    var r = s.el.getBoundingClientRect(), pad = (st.orb.offsetWidth || 48) / (PHI * PHI * PHI); s.rect = r;
     if (!r.width && !r.height) { st.ring.classList.remove('on'); st.scrim.style.background = ''; return; }
     var R = st.ring.style; R.left = (r.left - pad) + 'px'; R.top = (r.top - pad) + 'px'; R.width = (r.width + 2 * pad) + 'px'; R.height = (r.height + 2 * pad) + 'px';
     st.ring.classList.add('on');
     var cx = r.left + r.width / 2, cy = r.top + r.height / 2, rx = r.width / 2 + pad * PHI * PHI, ry = r.height / 2 + pad * PHI * PHI;
     st.scrim.style.background = 'radial-gradient(' + rx.toFixed(0) + 'px ' + ry.toFixed(0) + 'px at ' + cx.toFixed(0) + 'px ' + cy.toFixed(0) + 'px,transparent 0,transparent 76.4%,#050D1F 100%)';
+    if (s.bub && !s.bub.hidden) {   // the help bubble sits beside the part, on the roomier side
+      var bw = s.bub.offsetWidth, bh = s.bub.offsetHeight, below = r.bottom + pad + bh < innerHeight || r.top < bh + pad;
+      s.bub.style.left = Math.max(pad, Math.min(innerWidth - bw - pad, cx - bw / 2)) + 'px';
+      s.bub.style.top = (below ? Math.min(innerHeight - bh - pad, r.bottom + pad * PHI) : Math.max(pad, r.top - bh - pad * PHI)) + 'px';
+    }
   }
   function release() {
     if (!st || !st.spot) return; var s = st.spot; st.spot = null;
-    s.el.classList.remove('qorb-spot'); s.el.style.removeProperty('--qspot'); if (s.pulse) s.pulse.stop();
+    s.el.classList.remove('qorb-spot'); if (s.pulse) s.pulse.stop(); if (s.bub) s.bub.remove();
     st.ring.classList.remove('on', 'pulse'); st.scrim.style.background = ''; document.documentElement.classList.remove('qorb-calm');
+    setTimeout(function () { if (st.spot && st.spot.el === s.el) return; s.el.style.removeProperty('--qspot'); if (s.lift) { s.el.style.position = s.lift[0]; s.el.style.zIndex = s.lift[1]; } }, Math.pow(PHI, -1 + OWN) * 1000);   // after it has settled
+    if (s.onEnd) s.onEnd();
   }
-  function spotlight(id, prompt, o) {
+  // drop(target, o): o.text overrides the registered help text; o.bubble === false for no bubble (the spotlight has its panel);
+  // o.scroll brings it on screen first (otherwise an off-screen target does nothing); o.onEnd runs when it settles back.
+  function drop(target, o) {
     if (!st) init(); o = o || {}; release();
-    var t = find(id);
-    if (t === st.orb) t = null;   // the orb is already right there, riding on its own panel
-    if (t) {
-      try { t.scrollIntoView({ block: 'center', inline: 'nearest' }); } catch (e) {}
-      var r = t.getBoundingClientRect(), big = Math.max(r.width, r.height, 1), orb = st.orb.offsetWidth || 48;
-      t.style.setProperty('--qspot', (1 + (PHI - 1) * Math.min(1, orb / big)).toFixed(3));   // a ratio of the orb's own size
-      if (calm()) document.documentElement.classList.add('qorb-calm');
-      t.classList.add('qorb-spot'); st.spot = { el: t, rect: r };
-      requestAnimationFrame(place); setTimeout(place, Math.pow(PHI, -1 + OWN) * 1000);   // again once it has grown
-      if (window.Exhale) st.spot.pulse = Exhale.run(function () { if (!st.spot || st.spot.el !== t) return false; st.ring.classList.remove('pulse'); void st.ring.offsetWidth; st.ring.classList.add('pulse'); });
+    var t = find(target), hit = null; if (t) PARTS.forEach(function (pp) { if (find(pp.sel) === t) hit = { el: t, p: pp }; });
+    if (!t || t === st.orb) return null;
+    if (o.scroll) try { t.scrollIntoView({ block: 'center', inline: 'nearest' }); } catch (e) {}
+    var r = t.getBoundingClientRect();
+    if (!r.width && !r.height || r.bottom < 0 || r.top > innerHeight || !t.getClientRects().length) return null;   // not on screen: nothing happens
+    var big = Math.max(r.width, r.height, 1), orb = st.orb.offsetWidth || 48, cs = getComputedStyle(t);
+    t.setAttribute('data-qdrop', '');   // keeps the transition after the class goes, so it settles back smoothly
+    t.style.setProperty('--qspot', (1 + (PHI - 1) * Math.min(1, orb / big)).toFixed(3));   // a ratio of the orb's own size
+    var lift = null; if (cs.position === 'static') { lift = [t.style.position, t.style.zIndex]; t.style.position = 'relative'; t.style.zIndex = '41'; }
+    if (calm()) document.documentElement.classList.add('qorb-calm');
+    t.classList.add('qorb-spot'); st.spot = { el: t, rect: r, lift: lift, onEnd: o.onEnd };
+    var text = o.text || (hit && hit.p && hit.p.text);
+    if (o.bubble !== false && text) {
+      var bub = el('div', 'qorb-bub'); bub.setAttribute('role', 'status');
+      if (hit && hit.p && hit.p.name) bub.appendChild(el('b', null, hit.p.name + ' '));
+      bub.appendChild(document.createTextNode(text));
+      var ok = el('button', null, 'Got it'); ok.type = 'button'; ok.onclick = function () { release(); }; bub.appendChild(ok);
+      (document.getElementById('screen-app') || document.body).appendChild(bub); st.spot.bub = bub;
     }
+    requestAnimationFrame(place); setTimeout(place, Math.pow(PHI, -1 + OWN) * 1000);   // again once it has grown
+    if (window.Exhale) st.spot.pulse = Exhale.run(function () { if (!st.spot || st.spot.el !== t) return false; st.ring.classList.remove('pulse'); void st.ring.offsetWidth; st.ring.classList.add('pulse'); });
+    return { release: release, el: t };
+  }
+  // a real drop: drag the orb onto any part of the page and let go
+  function dragInit() {
+    var o = st.orb, d = null;
+    o.addEventListener('pointerdown', function (e) { if (st.t !== 0 || st.hold || e.button) return; d = { x: e.clientX, y: e.clientY, on: false, id: e.pointerId }; });
+    addEventListener('pointermove', function (e) {
+      if (!d || e.pointerId !== d.id) return; var dx = e.clientX - d.x, dy = e.clientY - d.y;
+      if (!d.on && Math.hypot(dx, dy) > o.offsetWidth / (PHI * PHI)) { d.on = true; try { o.setPointerCapture(d.id); } catch (er) {} o.style.transition = 'none'; }
+      if (d.on) { e.preventDefault(); o.style.transform = 'translate(' + dx.toFixed(0) + 'px,' + dy.toFixed(0) + 'px) scale(' + (1 + Math.pow(PHI, -3)).toFixed(3) + ')'; }
+    }, { passive: false });
+    addEventListener('pointerup', function (e) {
+      if (!d || e.pointerId !== d.id) return; var was = d.on; d = null; if (!was) return;
+      st.dragged = Date.now(); o.style.pointerEvents = 'none'; var under = document.elementFromPoint(e.clientX, e.clientY); o.style.pointerEvents = '';
+      o.style.transition = 'transform var(--ph-1,.7s) cubic-bezier(.2,.9,.3,1.2)'; o.style.transform = '';   // springs home
+      setTimeout(function () { o.style.transition = ''; }, Math.pow(PHI, -1 + OWN) * 1000);
+      var hit = under && partOf(under); if (hit) drop(hit.el); else if (under && under !== document.body && under.id !== 'screen-app') drop(under, {});
+    });
+  }
+  // ---- point and enlarge for a question (naming step, "Is this the change you want?"): a drop + the orb's panel ----
+  function spotlight(id, prompt, o) {
+    if (!st) init(); o = o || {};
+    var dr = drop(id, { bubble: false, scroll: true }), t = dr && dr.el;
     var spec = typeof prompt === 'string' ? null : prompt;
     if (spec) { spec.bot = spec.bot || o.bot; st.spec = spec; var q = function () { open(function (pan) { askBody(pan, spec); }); };
       if (window.Learner && !Learner.introSeen()) open(function (pan) { introBody(pan, spec.bot, q); }); else q();
@@ -217,5 +275,5 @@
     });
     return { release: release, found: !!t };
   }
-  window.QuizOrb = { init: init, ask: ask, picked: picked, home: home, intro: intro, reset: reset, spotlight: spotlight, release: release, hold: function (on) { if (!st) init(); st.hold = !!on; }, state: function () { return st ? { p: st.p, t: st.t } : null; } };
+  window.QuizOrb = { init: init, ask: ask, picked: picked, home: home, intro: intro, reset: reset, spotlight: spotlight, release: release, drop: drop, part: part, hold: function (on) { if (!st) init(); st.hold = !!on; }, state: function () { return st ? { p: st.p, t: st.t } : null; } };
 })();
