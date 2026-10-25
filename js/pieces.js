@@ -1,5 +1,5 @@
 /* "Your page, piece by piece": for every piece already on screen, a card with the piece live, its real parameters
-   (read from the same phi numbers the page runs on) and a Keep / Change choice for each one, then a short physics
+   (read from the same phi numbers the page runs on) and two directions for each one ("this way or that way?", js/pathways.js), then a short physics
    challenge on the terms behind it (multiple choice, true/false, explain it in your own words), with the right answer
    explained as "here's the term for that" (never marked wrong). Name-this questions go through the quiz orb
    (js/quiz-orb.js) with 2 / 3 / 5 / 10 options picked by the on-device learner model (js/learner.js, docs/learning-model.md).
@@ -200,8 +200,8 @@
 
   function renderParams() {
     var pc = LIST[S.i], el = $('pz'), a = S.ans[pc.id] = S.ans[pc.id] || {};
-    el.innerHTML = head(pc, S.i, 'keep it or change it') + '<div class="pz-demo" id="pz-demo"></div><p class="pz-lead">' + esc(pc.lead) + '</p>' +
-      '<p class="pz-lead"><b>For each part: keep it, or change it?</b> Nothing changes straight away. Your picks go to ' + esc(BI.host()) + ', who says yes or no.</p><ul class="pz-params" id="pz-params"></ul>' +
+    el.innerHTML = head(pc, S.i, 'which way should it go?') + '<div class="pz-demo" id="pz-demo"></div><p class="pz-lead">' + esc(pc.lead) + '</p>' +
+      '<p class="pz-lead"><b>For each part: this way or that way?</b> Tap the way you would take it. Roll shows two other ways. Leave a part alone and it stays as it is. Nothing changes straight away: your picks go to ' + esc(BI.host()) + ', who says yes or no.</p><ul class="pz-params" id="pz-params"></ul>' +
       '<label class="sr" for="pz-note">Anything else about this piece?</label><textarea id="pz-note" class="pz-note" rows="2" maxlength="400" placeholder="Anything else about this piece? (optional)"></textarea>' +
       '<div class="btnrow"><button type="button" class="btn bk" id="pz-back">&larr; Back</button><button type="button" class="btn" id="pz-next">Physics challenge &rarr;</button></div>';
     var d = $('pz-demo'), dh = pc.demo(d); if (dh) d.innerHTML = dh;
@@ -209,20 +209,16 @@
     pc.params.forEach(function (p) {
       var li = document.createElement('li'); li.className = 'pz-p';
       li.innerHTML = '<div class="pl"><b>' + esc(p.l) + '</b></div><span class="pv">' + esc(p.v) + '</span>' + (p.h ? '<span class="ph">' + esc(p.h) + '</span>' : '') + (p.ar ? '<span class="ph ar"><b>Arduino:</b> ' + esc(p.ar) + '</span>' : '') + '<div class="pz-ch" role="group" aria-label="' + esc(p.l) + '"></div>';
-      var ch = li.querySelector('.pz-ch'), cur = a[p.id];
-      function btn(label, val, cls, style) { var b = document.createElement('button'); b.type = 'button'; if (cls) b.className = cls; if (style) b.style.background = style; b.textContent = cls === 'sw' ? '' : label; if (cls === 'sw') b.setAttribute('aria-label', label);
-        b.setAttribute('aria-pressed', String(cur === val)); b.onclick = function () { a[p.id] = val; save(); renderKeep(); }; ch.appendChild(b); }
-      function renderKeep() { cur = a[p.id]; ch.querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', String((b.dataset.v || b.textContent || b.getAttribute('aria-label')) === cur)); }); }
-      if (p.k === 'colour') {
-        btn('Keep', 'Keep');
-        NAVY.concat(['#0A3D3F', '#2B1B5A', '#111417']).forEach(function (c) { btn('Colour ' + c, c, 'sw', c); ch.lastChild.dataset.v = c; });
-        var ci = document.createElement('input'); ci.type = 'color'; ci.value = /^#[0-9a-f]{6}$/i.test(cur || '') ? cur : '#0B1F4D'; ci.setAttribute('aria-label', 'Pick any colour');
-        ci.oninput = function () { a[p.id] = ci.value; save(); renderKeep(); }; ch.appendChild(ci);
-      } else if (p.k === 'text') {
-        btn('Keep', 'Keep');
-        var ti = document.createElement('input'); ti.type = 'text'; ti.maxLength = 60; ti.placeholder = 'or type…'; ti.setAttribute('aria-label', p.l + ': your idea'); if (cur && cur !== 'Keep') ti.value = cur;
-        ti.onchange = function () { var v = ti.value.trim().slice(0, 60); if (v) { a[p.id] = v; save(); renderKeep(); } }; ch.appendChild(ti);
-      } else p.k.forEach(function (o) { btn(o, o); });
+      var ch = li.querySelector('.pz-ch'), cur = a[p.id], ways = document.createElement('div'); ch.appendChild(ways);
+      // pathways: two concrete directions from the current value + Roll (js/pathways.js); no Keep / Change
+      if (window.Pathways) Pathways.render(ways, pc, p, a, save);
+      if (p.k === 'colour' || p.k === 'text') {   // or make up your own direction
+        var own = document.createElement('label'); own.className = 'pw-own'; own.textContent = p.k === 'colour' ? 'or pick your own colour ' : 'or type your own ';
+        var inp = document.createElement('input'); inp.type = p.k === 'colour' ? 'color' : 'text'; inp.setAttribute('aria-label', p.l + ': your own idea');
+        if (p.k === 'colour') { inp.value = cur && cur.own && /^#[0-9a-f]{6}$/i.test(cur.own) ? cur.own : '#0B1F4D'; inp.oninput = function () { a[p.id] = { t: 'My own colour', val: inp.value, own: inp.value }; save(); Pathways.render(ways, pc, p, a, save); }; }
+        else { inp.maxLength = 60; inp.placeholder = 'your idea…'; if (cur && cur.own) inp.value = cur.own; inp.onchange = function () { var v = inp.value.trim().slice(0, 60); if (v) { a[p.id] = { t: 'My own: ' + v, val: v, own: v }; save(); Pathways.render(ways, pc, p, a, save); } }; }
+        own.appendChild(inp); ch.appendChild(own);
+      }
       ul.appendChild(li);
     });
     $('pz-note').value = S.notes[pc.id] || '';
@@ -272,7 +268,7 @@
 
   function summary(pc) {
     var a = S.ans[pc.id] || {}, R = S.quiz[pc.id] || {}, lines = [], right = 0, asked = 0, miss = [];
-    pc.params.forEach(function (p) { lines.push('• ' + p.l + ' (now: ' + p.v + ') → ' + (a[p.id] || 'no answer')); });
+    pc.params.forEach(function (p) { lines.push('• ' + p.l + ' (now: ' + p.v + ') → ' + (window.Pathways ? Pathways.label(a[p.id]) : (a[p.id] || 'no answer'))); });
     if (S.notes[pc.id]) lines.push('Note: ' + S.notes[pc.id]);
     pc.quiz.forEach(function (q, k) { var r = R[k]; if (q.open) { lines.push('Explain (' + q.t + '): ' + (r && r.text ? r.text : 'skipped')); return; } asked++; if (r && r.ok) right++; else miss.push(q.t); });
     lines.push('Physics: ' + right + '/' + asked + ' named first time' + (miss.length ? ' (terms met: ' + miss.join(', ') + ')' : ''));

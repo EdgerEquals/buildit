@@ -78,7 +78,7 @@
     // tier 1: the piece-by-piece questions (most important after unlock); tier 2 (idle, PHI^-2 apart, usage-ordered):
     // chat poll + live line, orbit emojis, the ratio pump; tier 3: DJ engine + zoom mark prefetch. DJ itself loads on tap.
     // the learner model and the quiz orb load with the questions (tier 1), in order: model, orb, then the questions
-    if (!window.Pieces) { ['js/learner.js?v=2', 'js/quiz-orb.js?v=2', 'js/pieces.js?v=3'].forEach((u) => { const sp = document.createElement('script'); sp.src = u; sp.async = false; document.head.appendChild(sp); }); }
+    if (!window.Pieces) { ['js/learner.js?v=2', 'js/quiz-orb.js?v=2', 'js/pathways.js?v=1', 'js/pieces.js?v=4'].forEach((u) => { const sp = document.createElement('script'); sp.src = u; sp.async = false; document.head.appendChild(sp); }); }
     else document.dispatchEvent(new CustomEvent('bi:open'));
     Tiers.add(2, startChat, 'chat', false);
     if (Tiers.script) { Tiers.script('js/orbit.js?v=1', 2, null, 'orbit'); Tiers.script('js/ratio-pump.js?v=1', 2, { 'data-site': 'buildit', 'data-freq': '0.75' }, 'pump', false); }
@@ -145,19 +145,19 @@
   const P = (n, b, s, a, a2, tx) => ({ t: n, pal: { b, s, a, a2, tx } });
   // Part 1: context, to get a feel for the theme. yn = Yes / No; tot = this or that (+ Roll from POOL)
   const PART1 = [
-    { id: 'build', type: 'yn', q: 'Do you like building and making things?', e: '🛠️' },
+    { id: 'build', type: 'tot', q: 'Which way should your page lean?', opts: [O('Building and making things', '🛠️'), O('Exploring and finding things out', '🧭')] },
     { id: 'spaceocean', type: 'tot', q: 'Which sounds cooler?', opts: [O('Space missions', '🚀'), O('The deep ocean', '🌊')] },
-    { id: 'specops', type: 'yn', q: 'Special ops style: mission briefings, night vision, secret codes?', e: '🕶️' },
-    { id: 'gaming', type: 'yn', q: 'Are you into gaming?', e: '🎮' },
+    { id: 'specops', type: 'tot', q: 'Pick a style to go with', opts: [O('Special ops: briefings, night vision, codes', '🕶️'), O('Explorer: maps, logbooks, discoveries', '🗺️')] },
+    { id: 'gaming', type: 'tot', q: 'Which way for the fun stuff?', opts: [O('Gaming', '🎮'), O('Making and inventing', '💡')] },
     { id: 'sportmusic', type: 'tot', q: 'Which one is more you?', opts: [O('Sport', '⚽'), O('Music', '🎸')] },
-    { id: 'robots', type: 'yn', q: 'Robots, machines and engineering?', e: '🤖' },
+    { id: 'robots', type: 'tot', q: 'Which way for the tech side?', opts: [O('Robots and machines', '🤖'), O('Apps and websites', '🌐')] },
     { id: 'naturecity', type: 'tot', q: 'Which would you rather explore?', opts: [O('Nature and animals', '🦎'), O('Cities and tech', '🏙️')] },
     { id: 'vibe', type: 'tot', q: 'What vibe do you want for your page?', opts: [O('Calm and clean', '🧘'), O('Loud and full of action', '💥')] },
     { id: 'look', type: 'tot', q: 'Which style looks better?', opts: [O('Retro pixel arcade', '👾'), O('Sleek and futuristic', '🛸')] },
-    { id: 'dark', type: 'yn', q: 'Do you want your page to be dark (like night mode)?', e: '🌑' },
-    { id: 'moving', type: 'yn', q: 'Do you like lots of things moving on the screen?', e: '🌀' },
+    { id: 'dark', type: 'tot', q: 'Which way for the light?', opts: [O('Dark, like night mode', '🌑'), O('Bright, like daytime', '☀️')] },
+    { id: 'moving', type: 'tot', q: 'How busy should it look?', opts: [O('Lots moving on the screen', '🌀'), O('Calm, a few things moving', '🍃')] },
     { id: 'content', type: 'tot', q: 'What should your page have more of?', opts: [O('Facts and how things work', '🔬'), O('Games and challenges', '🏆')] },
-    { id: 'helper', type: 'yn', q: 'Would you like a bot that helps you plan builds and projects?', e: '🧰' }
+    { id: 'helper', type: 'tot', q: 'What should your bot help with most?', opts: [O('Planning builds and projects', '🧰'), O('Learning new things', '📚')] }
   ];
   const POOL = [O('Dinosaurs', '🦖'), O('Cars and racing', '🏎️'), O('Planes and flying', '✈️'), O('Building blocks', '🧱'), O('Superheroes', '🦸'),
     O('Magic and wizards', '🪄'), O('Ancient history', '🏛️'), O('Coding and computers', '💻'), O('Drones', '🚁'), O('Martial arts', '🥋'),
@@ -175,28 +175,29 @@
     P('Workshop', '#111417', '#22282E', '#FF8C1A', '#8FA3B5', '#EEF2F5'), P('Cyber Lime', '#0A0D05', '#1B2410', '#B6FF00', '#00E5FF', '#F4FFE0'),
     P('Sunset', '#1A0B14', '#3A1730', '#FF7A59', '#FFC15E', '#FFEFE6'), P('Black and White', '#000000', '#1A1A1A', '#FFFFFF', '#888888', '#FFFFFF')];
   const PART2 = [[0, 3], [4, 5], [8, 10], [13, 15], [6, 11]].map((pr, i) => ({ id: 'pal' + (i + 1), type: 'pal', q: ['Which colours feel more like you?', 'Which one would you pick for your page?', 'Which palette looks better?', 'Pick your favourite of these two', 'Last colour round: which one?'][i], opts: [PALS[pr[0]], PALS[pr[1]]] }));
-  // Part 3: pieces of Danny's dashboard, yes or no each, with a tiny CSS preview (no extra downloads except the 4 KB mark)
+  // Part 3: pieces of Danny's dashboard, this way or that way each (two directions + Roll), with a tiny CSS preview (no extra downloads except the 4 KB mark)
   const rain = '<div class="pv-rain">' + ['ｱ1ｳ0ｶ7ﾂ2', '7ｷﾂ2ﾅ0ﾊ', 'ﾊ0ﾏ1ｼ9ﾗ', '9ﾗｴ3ﾜﾀ1', 'ﾀ1ﾔ0ﾆ4ﾎ', '4ﾎｹ1ﾓﾁ0', 'ﾁ0ﾐ8ﾙｻ1', 'ｻ1ﾈ0ﾑｱ1', 'ﾜ3ｷ0ﾅ7ｼ'].map((s, i) => '<span style="animation-delay:-' + (i * 0.618 * 4.236 % 4.236).toFixed(2) + 's">' + s.split('').join('\n') + '</span>').join('') + '</div>';
   const stars = '<div class="pv-space">' + [[12, 20], [30, 70], [48, 30], [66, 60], [80, 18], [90, 75], [22, 50], [58, 12]].map((p, i) => '<i style="left:' + p[0] + '%;top:' + p[1] + '%;animation-delay:-' + (i * 0.618 * 4.236 % 4.236).toFixed(2) + 's"></i>').join('') + '</div>';
   const PART3 = [
-    { id: 'mark', q: 'A logo mark in the header', d: 'A small animated logo at the top, like the orbiting equals sign on {host}’s page.', pv: () => '<img src="img/mark-head.svg?v=1" alt="" width="76" height="76" decoding="async">' },
-    { id: 'zoom', q: 'Tap the logo to make it big', d: 'Tap your logo and it opens up large, so you can look at the details.', pv: () => '<span class="pv-zoom"></span>' },
-    { id: 'orbit', q: 'Things orbiting around the header', d: 'Little planets and bodies circling slowly around the top of the page.', pv: () => '<span class="pv-orbit"><i></i></span>' },
-    { id: 'waves', q: 'Energy waves from the logo', d: 'Rings that ripple out from the logo, bounce off an edge and fade.', pv: () => '<span class="pv-waves"><i></i><i></i><i></i></span>' },
-    { id: 'rain', q: 'Matrix code rain', d: 'Green computer code falling down the background, like the movie.', pv: () => rain },
-    { id: 'tty', q: 'A mission log terminal in the footer', d: 'A little terminal at the bottom where Simmie types status lines.', pv: () => '<div class="pv-tty"><b>simmie&gt;</b> <span>all systems nominal_</span></div>' },
-    { id: 'bars', q: 'Live bar graphs', d: 'Three small bars showing real things, like activity, progress and connection speed.', pv: () => '<span class="pv-bars"><i></i><i></i><i></i></span>' },
-    { id: 'footline', q: 'A cycling line at the bottom', d: 'Quotes, “on this day”, a word of the day and science facts, taking turns.', pv: () => '<div class="pv-line"><span>“Make it simple, but significant.” · On this day: first flight, 1903 · Word: ingenious · Fact: light takes 8 min from the Sun</span></div>' },
-    { id: 'ticker', q: 'A fun-fact ticker in the header', d: 'Facts scrolling past along the top of the page.', pv: () => '<div class="pv-line"><span>fact = "Octopuses have three hearts" ; fact = "A day on Venus is longer than its year" ;</span></div>' },
-    { id: 'weather', q: 'A weather chip', d: 'Today’s weather in the header, with little faces that react to it.', pv: () => '<span class="pv-wx"><b>☀️</b> 24° <b>😎</b></span>' },
-    { id: 'critters', q: 'Critters and a tide line in the footer', d: 'A strip of animals drifting by, over a gentle wave.', pv: () => '<div class="pv-crit"><span>🦊 🐨 🦘 🐙 🦎 🐞 🐸 🦔 🐌 🦉</span></div><span class="pv-tide"></span>' },
-    { id: 'lanes', q: 'Animals and rockets crossing the page', d: 'Every so often something trots, hops or flies across the header or footer.', pv: () => '<span class="pv-lane">🐎</span>' },
-    { id: 'lights', q: 'Status lights', d: 'Small lights that show what’s going on, like your progress and whether you’re online.', pv: () => '<span class="pv-leds"><span><i></i>STEP</span><span><i></i>DONE</span><span><i></i>LINK</span></span>' },
-    { id: 'dj', q: 'A music DJ button', d: 'Music made right in the page, only when you tap play.', pv: () => '<span class="pv-dj">' + '<i></i>'.repeat(9) + '</span>' },
-    { id: 'space', q: 'A space video in the background', d: 'A slow, dark space scene moving behind everything.', pv: () => stars },
-    { id: 'themes', q: 'Backgrounds that change with your answers', d: 'Floating pictures behind the questions that match what you pick.', pv: () => '<div class="pv-float">' + ['🚀', '⚽', '🎸', '🦖', '🧱'].map((e, i) => '<span style="left:' + (10 + i * 19) + '%;top:' + (30 + (i % 2) * 22) + '%;animation-delay:-' + (i * 0.618 * 6.854 % 6.854).toFixed(2) + 's">' + e + '</span>').join('') + '</div>' },
-    { id: 'quiz', q: 'More questions like these later', d: 'Polls and this-or-that questions on your page from time to time.', pv: () => '<span class="pv-quiz"><span>This</span><span>That</span></span>' }
-  ].map((x) => ({ ...x, type: 'yn' }));
+    { id: 'mark', w: 'A simple still badge in the header', q: 'A logo mark in the header', d: 'A small animated logo at the top, like the orbiting equals sign on {host}’s page.', pv: () => '<img src="img/mark-head.svg?v=1" alt="" width="76" height="76" decoding="async">' },
+    { id: 'zoom', w: 'Hold the logo to see it spin', q: 'Tap the logo to make it big', d: 'Tap your logo and it opens up large, so you can look at the details.', pv: () => '<span class="pv-zoom"></span>' },
+    { id: 'orbit', w: 'Satellites zipping across now and then', q: 'Things orbiting around the header', d: 'Little planets and bodies circling slowly around the top of the page.', pv: () => '<span class="pv-orbit"><i></i></span>' },
+    { id: 'waves', w: 'A soft glow pulsing from the logo', q: 'Energy waves from the logo', d: 'Rings that ripple out from the logo, bounce off an edge and fade.', pv: () => '<span class="pv-waves"><i></i><i></i><i></i></span>' },
+    { id: 'rain', w: 'Falling stars in the background', q: 'Matrix code rain', d: 'Green computer code falling down the background, like the movie.', pv: () => rain },
+    { id: 'tty', w: 'A mission log you open with a button', q: 'A mission log terminal in the footer', d: 'A little terminal at the bottom where Simmie types status lines.', pv: () => '<div class="pv-tty"><b>simmie&gt;</b> <span>all systems nominal_</span></div>' },
+    { id: 'bars', w: 'Live dials, like a car dashboard', q: 'Live bar graphs', d: 'Three small bars showing real things, like activity, progress and connection speed.', pv: () => '<span class="pv-bars"><i></i><i></i><i></i></span>' },
+    { id: 'footline', w: 'One fact of the day at the top', q: 'A cycling line at the bottom', d: 'Quotes, “on this day”, a word of the day and science facts, taking turns.', pv: () => '<div class="pv-line"><span>“Make it simple, but significant.” · On this day: first flight, 1903 · Word: ingenious · Fact: light takes 8 min from the Sun</span></div>' },
+    { id: 'ticker', w: 'A fact that pops up when you tap your bot', q: 'A fun-fact ticker in the header', d: 'Facts scrolling past along the top of the page.', pv: () => '<div class="pv-line"><span>fact = "Octopuses have three hearts" ; fact = "A day on Venus is longer than its year" ;</span></div>' },
+    { id: 'weather', w: 'Page colours that change with the weather', q: 'A weather chip', d: 'Today’s weather in the header, with little faces that react to it.', pv: () => '<span class="pv-wx"><b>☀️</b> 24° <b>😎</b></span>' },
+    { id: 'critters', w: 'Robots marching along the footer', q: 'Critters and a tide line in the footer', d: 'A strip of animals drifting by, over a gentle wave.', pv: () => '<div class="pv-crit"><span>🦊 🐨 🦘 🐙 🦎 🐞 🐸 🦔 🐌 🦉</span></div><span class="pv-tide"></span>' },
+    { id: 'lanes', w: 'Paper planes gliding across now and then', q: 'Animals and rockets crossing the page', d: 'Every so often something trots, hops or flies across the header or footer.', pv: () => '<span class="pv-lane">🐎</span>' },
+    { id: 'lights', w: 'A progress bar that fills up', q: 'Status lights', d: 'Small lights that show what’s going on, like your progress and whether you’re online.', pv: () => '<span class="pv-leds"><span><i></i>STEP</span><span><i></i>DONE</span><span><i></i>LINK</span></span>' },
+    { id: 'dj', w: 'Sound effects when you tap things', q: 'A music DJ button', d: 'Music made right in the page, only when you tap play.', pv: () => '<span class="pv-dj">' + '<i></i>'.repeat(9) + '</span>' },
+    { id: 'space', w: 'A slow ocean scene behind everything', q: 'A space video in the background', d: 'A slow, dark space scene moving behind everything.', pv: () => stars },
+    { id: 'themes', w: 'Stickers you collect as you answer', q: 'Backgrounds that change with your answers', d: 'Floating pictures behind the questions that match what you pick.', pv: () => '<div class="pv-float">' + ['🚀', '⚽', '🎸', '🦖', '🧱'].map((e, i) => '<span style="left:' + (10 + i * 19) + '%;top:' + (30 + (i % 2) * 22) + '%;animation-delay:-' + (i * 0.618 * 6.854 % 6.854).toFixed(2) + 's">' + e + '</span>').join('') + '</div>' },
+    { id: 'quiz', w: 'Mini challenges that unlock new parts', q: 'More questions like these later', d: 'Polls and this-or-that questions on your page from time to time.', pv: () => '<span class="pv-quiz"><span>This</span><span>That</span></span>' }
+  ].map((x) => ({ ...x, type: 'way', opts: [O(x.q, '✨'), O(x.w, '🔀')] }));
+  const WAYS = PART3.map((x) => x.opts[1]).concat(PART3.map((x) => x.opts[0]));   // Roll draws other directions from these
   const PARTS = [{ n: 1, name: 'About you', qs: PART1 }, { n: 2, name: 'Colours', qs: PART2 }, { n: 3, name: 'Pieces of ' + 'the dashboard', qs: PART3 }];
   const STEPS = []; PARTS.forEach((p) => p.qs.forEach((q, i) => STEPS.push({ part: p.n, idx: i, q })));
 
@@ -208,11 +209,11 @@
     try { const raw = localStorage.getItem(QKEY); if (raw) { const s = await C.decryptJSON(key, JSON.parse(raw)); if (s && s.v === 1) S = s; } } catch (e) { localStorage.removeItem(QKEY); }
   }
   async function saveProgress() { try { localStorage.setItem(QKEY, JSON.stringify(await C.encryptJSON(key, S))); } catch (e) {} }
-  const A = (q) => (S.ans[q.id] = S.ans[q.id] || { pick: null, notes: [], opts: q.opts ? q.opts.map((o) => o.t) : null });
+  const A = (q) => { const a = S.ans[q.id] = S.ans[q.id] || { pick: null, notes: [], opts: q.opts ? q.opts.map((o) => o.t) : null }; if (q.opts && !a.opts) { a.opts = q.opts.map((o) => o.t); a.pick = null; } return a; };   // older yes/no saves get the two directions
   function optsOf(q) {
     if (q.type === 'yn') return [O('Yes', '👍'), O('No', '👎')];
     const a = A(q);
-    const all = q.type === 'pal' ? PALS : POOL.concat(q.opts);
+    const all = q.type === 'pal' ? PALS : q.type === 'way' ? WAYS : POOL.concat(q.opts);
     return a.opts.map((t, i) => all.find((o) => o.t === t) || q.opts[i]);
   }
   const panels = ['q-start', 'q-quiz', 'q-break', 'q-done'];
@@ -232,7 +233,7 @@
     $('q-phase').textContent = 'Extra questions · part ' + st.part + ' of 3 · ' + (st.part === 3 ? 'Pieces of ' + HOST() + '’s dashboard' : part.name);
     $('q-dots').innerHTML = part.qs.map((x, i) => '<i class="' + (i < st.idx ? 'done' : i === st.idx ? 'now' : '') + '"></i>').join('');
     $('q-count').textContent = 'Question ' + (st.idx + 1) + ' of ' + part.qs.length;
-    $('q-text').textContent = (q.type === 'yn' && q.e ? q.e + ' ' : '') + (st.part === 3 ? q.q + '?' : q.q);
+    $('q-text').textContent = (q.type === 'yn' && q.e ? q.e + ' ' : '') + (q.type === 'way' ? 'This way or that way?' : q.q);
     const pv = $('q-prev'), ds = $('q-desc');
     if (q.pv) { pv.innerHTML = q.pv(); pv.hidden = false; ds.textContent = q.d.replace('{host}', HOST()); ds.hidden = false; } else { pv.innerHTML = ''; pv.hidden = true; ds.hidden = true; }
     $('q-choices').classList.toggle('yn', q.type === 'yn');
@@ -261,7 +262,7 @@
   document.querySelectorAll('.roll').forEach((b) => {
     b.onclick = () => {
       const i = +b.dataset.i, q = STEPS[S.qi].q, a = A(q); if (q.type === 'yn') return;
-      const list = q.type === 'pal' ? PALS : POOL.concat(q.opts);
+      const list = q.type === 'pal' ? PALS : q.type === 'way' ? WAYS : POOL.concat(q.opts);
       const c = list.filter((o) => !a.opts.includes(o.t));
       a.opts[i] = c[Math.floor(Math.random() * c.length)].t; a.pick = null; saveProgress(); renderQ();
       const t = $('t' + i); t.classList.remove('swap'); void t.offsetWidth; t.classList.add('swap');
@@ -276,7 +277,7 @@
   function partBreak(p) {
     panel('q-break');
     $('q-break-h').textContent = p === 1 ? 'Nice one! Part 1 done.' : 'Great picks! Part 2 done.';
-    $('q-break-p').textContent = p === 1 ? 'Next up: colours. You get two palettes at a time. Tap the one you like, or roll for a new one.' : 'Last part: pieces from ' + HOST() + '’s dashboard. Say yes to the ones you want on your page.';
+    $('q-break-p').textContent = p === 1 ? 'Next up: colours. You get two palettes at a time. Tap the one you like, or roll for a new one.' : 'Last part: pieces from ' + HOST() + '’s dashboard. Pick which way you would take each one, or roll for other ways.';
     sendStatus('q-break-s', p);
     window.scrollTo(0, 0);
   }
