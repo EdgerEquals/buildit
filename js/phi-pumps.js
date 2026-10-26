@@ -45,6 +45,9 @@
     if (!b) return null;   // neither pump is running: callers keep their own page ladder
     lastB = b; return b;
   }
+  function B0() {   // the sky-only anchor (no kid rhythm): the pitch range's centre (Kids Club pitch standard, Pump B)
+    var m = pumpOf(sky(), 'M2'); return m ? m.p * 864e2 * Math.pow(PHI, -18) * Math.pow(m.sw, m.c / 2) : null;
+  }
   function floorPeriod(p) { var b = lastB || B(); return b ? Math.max(p, b * Math.pow(PHI, -2)) : p; }
   // ---- nodes ----
   function node(name, n, k0, depth, parent, seed) {
@@ -75,7 +78,7 @@
   provide('ratio-pump', function () { var R = window.RatioPump; if (!R || !R.pump) return null; var p = +R.pump(), lo = Math.pow(PHI, -0.25); return isFinite(p) ? Math.max(-1, Math.min(1, 2 * (p - lo) / (1 - lo) - 1)) : null; });
   provide('component:theme', function () { return document.documentElement.getAttribute('data-theme') === 'light' ? 1 : -1; });
   function logo(id) { return logos[id] || (logos[id] = node('logo:' + id, 8, -1, Math.pow(PHI, -5), page, 1)); }   // one shared 8-pump node per logo
-  window.PhiPumps = { node: node, now: now, PHI: PHI, page: page, logo: logo, B: B, floor: floorPeriod, provide: provide, subscribe: subscribe,
+  window.PhiPumps = { node: node, now: now, PHI: PHI, page: page, logo: logo, B: B, B0: B0, floor: floorPeriod, provide: provide, subscribe: subscribe,
     names: function () { return Object.keys(reg); },
     tree: function () { return { page: page.n, logos: Object.keys(logos).map(function (k) { return [k, logos[k].n]; }), B: lastB }; } };
 })();

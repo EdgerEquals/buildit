@@ -5,10 +5,12 @@
    2 STARS    faint still stars on a small canvas behind the logo, plus 5 (Fibonacci) highlight stars that twinkle just outside the
               logo's edge; star k repeats every B x PHI^(k - 1), each twinkle B x PHI^-1, first at its period x frac(k / PHI).
    3 GLOW     the halo breathes over B x PHI^2; its echo comes back off an undrawn wall B x PHI^-1 later.
-   4 SOUND    the music bed from js/logo-sound.js (this page's copy, lazy) on the AudioContext made inside the tap, plus tiny glass
-              sparkles on each twinkle and an air swish on each shimmer (Web Audio only, no files). Sparkle pitches sit five octaves
-              over the bed's live root (so they follow the page's feeds); levels are PHI powers of the view's output, which follows
-              quiet hours (PhiPumps 'quiet').
+   4 SOUND    the music bed from js/logo-sound.js (this page's copy, plain Web Audio, lazy) on the AudioContext made inside the tap,
+              plus tiny glass sparkles on each twinkle and an air swish on each shimmer. No master volume and no output gain node:
+              each sound goes straight to the device, whose own volume is the one overall control. Levels come from the amplitude
+              matrix hook (LogoSound.level: matrix level x quiet hours; pending Danny). Pitches are ratios of the live base
+              (LogoSound.base: the kid's rhythm, ranged by the page's feeds), sparkles five octaves over it. No sound until
+              logo-sound.js has loaded, so nothing here has a pitch or level of its own.
    B = PhiPumps.B() (anchor B: moon clock + the kid's own rhythm); every value is B x PHI^n or a PHI power. Colours come from the
    page palette and the logo's own layers. Reduced motion: no shimmer, twinkles or breathing; the still stars, glow and sounds stay.
    API: LogoZoomLife.start(fig, audioContext, {logo, colours}) / stop() / running(). */
@@ -17,7 +19,7 @@
   if (window.LogoZoomLife) return;
   var PHI = 1.6180339887, G = 1 / PHI;
   var RM = window.matchMedia ? matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
-  var own = 0.25; try { var o0 = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--own-step')); if (isFinite(o0)) own = o0; } catch (e) {}
+  var own = 0; try { var o0 = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--own-step')); if (isFinite(o0)) own = o0; } catch (e) {}
   function Bs() { var b = window.PhiPumps && PhiPumps.B ? PhiPumps.B() : null; return b || Math.pow(PHI, 3 + own); }   // fallback: the page's own breathing beat
   function T(n) { return Bs() * Math.pow(PHI, n) * 1000; }   // ms
   function cssv(n) { try { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); } catch (e) { return ''; } }
@@ -28,12 +30,12 @@
     '.lz-wall{position:absolute;inset:-23.6%;border-radius:50%;pointer-events:none;z-index:0;opacity:0;background:radial-gradient(circle,transparent 61.8%,var(--ac2) 76.4%,transparent 90.2%)}';
   function style() { if (document.getElementById('lz-css')) return; var s = document.createElement('style'); s.id = 'lz-css'; s.textContent = CSS; document.head.appendChild(s); }
   var st = null;
-  function out() { return st && st.ac && st.ac.state === 'running' ? st.out : null; }
-  function hz(m) { return 440 * Math.pow(2, (m - 69) / 12); }
-  function rootHz() { var L = window.LogoSound && LogoSound.live && st && LogoSound.live[st.id], m = L && L.midi; return m ? hz(m) * 32 : 440 * PHI * PHI; }   // five octaves over the bed's live root (before it runs: the A4 reference x PHI^2)
+  function out() { return st && st.ac && st.ac.state === 'running' && window.LogoSound ? st.ac.destination : null; }   // straight to the device: no master gain
+  function rootHz() { return LogoSound.base() * 32; }   // five octaves over the live base (2^5, an interval)
+  function lv(k) { return LogoSound.level(k); }   // amplitude matrix hook x quiet hours
   var PENTA = [0, 2, 4, 7, 9];   // major pentatonic, in semitones (a musical scale, not a tuning value)
   function sparkle(k, lvl, delay) {
-    var o = out(); if (!o) return; var ac = st.ac, t = ac.currentTime + (delay || 0) + Math.pow(PHI, -10);
+    var o = out(); if (!o) return; var ac = st.ac, t = ac.currentTime + (delay || 0) + Math.pow(PHI, -10); lvl = lvl * lv('sparkle');
     var f = rootHz() * Math.pow(2, PENTA[((k % 5) + 5) % 5] / 12), d = Bs() * Math.pow(PHI, -5);
     [1, PHI * PHI, PHI * PHI * PHI].forEach(function (r, i) {   // a bright sine plus two quiet inharmonic partials (glass)
       var os = ac.createOscillator(), g = ac.createGain(); os.type = 'sine'; os.frequency.value = f * r;
@@ -42,7 +44,7 @@
   }
   var noise = null;
   function swish(dur, lvl) {
-    var o = out(); if (!o) return; var ac = st.ac, t = ac.currentTime + Math.pow(PHI, -10);
+    var o = out(); if (!o) return; var ac = st.ac, t = ac.currentTime + Math.pow(PHI, -10); lvl = lvl * lv('swish');
     if (!noise || noise.sampleRate !== ac.sampleRate) { var n = Math.floor(ac.sampleRate * dur); noise = ac.createBuffer(1, n, ac.sampleRate); var c = noise.getChannelData(0); for (var i = 0; i < n; i++) c[i] = Math.random() * 2 - 1; }
     var s = ac.createBufferSource(), hp = ac.createBiquadFilter(), bp = ac.createBiquadFilter(), g = ac.createGain(), f0 = rootHz();
     s.buffer = noise; hp.type = 'highpass'; hp.frequency.value = f0; bp.type = 'bandpass'; bp.Q.value = G;
@@ -57,17 +59,17 @@
     if (!st || !st.ac || !st.out) return; var me = st;
     function go() { if (me !== st || me.snd || !window.LogoSound) return; try { me.snd = LogoSound.create(me.ac, me.out, { logo: me.id, events: { 'star-drop': Math.pow(PHI, -3), shimmer: Math.pow(PHI, -3) } }); } catch (e) {} }
     if (window.LogoSound) return go();
-    var sc = document.createElement('script'); sc.src = 'js/logo-sound.js?v=1'; sc.async = true; sc.onload = go; document.head.appendChild(sc);
+    var sc = document.createElement('script'); sc.src = 'js/logo-sound.js?v=2'; sc.async = true; sc.onload = go; document.head.appendChild(sc);
   }
   function shimmer() {
     if (!st || !st.sheen) return; snd('shimmer'); var dur = T(-1);
     anim(st.sheen, [{ transform: 'translateX(0)' }, { transform: 'translateX(' + (PHI * PHI * 100).toFixed(1) + '%)' }], { duration: dur, easing: 'ease-in-out' });
-    swish(dur / 1000, Math.pow(PHI, -8)); later(shimmer, T(1));
+    swish(dur / 1000, 1); later(shimmer, T(1));
   }
   function twinkle(k) {
     var el = st.stars[k - 1]; if (!el) return;
     anim(el, [{ opacity: 0, transform: 'scale(.382)' }, { opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(.382)' }], { duration: T(-1), easing: 'ease-in-out' });
-    sparkle(k, Math.pow(PHI, -9), 0); later(function () { twinkle(k); }, T(k - 1));
+    sparkle(k, 1, 0); later(function () { twinkle(k); }, T(k - 1));
   }
   function bgStars(cv) {
     var w = cv.clientWidth, h = cv.clientHeight, d = Math.min(PHI, window.devicePixelRatio || 1); if (!w || !h) return;
@@ -84,7 +86,7 @@
     var wall = document.createElement('div'); wall.className = 'lz-wall'; fig.insertBefore(wall, glow.nextSibling); st.wall = wall;
     var fx = document.createElement('div'); fx.className = 'lz-fx'; fx.setAttribute('aria-hidden', 'true'); fig.appendChild(fx); st.fx = fx;
     requestAnimationFrame(function () { if (st && st.cv === cv) bgStars(cv); });
-    if (ac) { try { var g = ac.createGain(), q = window.PhiPumps ? PhiPumps.subscribe('quiet').get() : null; g.gain.value = q == null ? 1 : q; g.connect(ac.destination); st.out = g; } catch (e) {} music(); }
+    if (ac) { st.out = ac.destination; music(); }
     if (RM.matches) { glow.style.opacity = String(G); return; }
     var sheen = document.createElement('i'); sheen.className = 'lz-sheen'; fx.appendChild(sheen); st.sheen = sheen;
     for (var k = 1; k <= 5; k++) { var s = document.createElement('i'); s.className = 'lz-star'; var a = 2 * Math.PI * ((k * G) % 1), r = 50 * (1 + Math.pow(PHI, -3));

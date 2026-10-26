@@ -13,7 +13,7 @@
    the logo opens the logo view with tiles and buttons only (layers on/off, colours, bigger/smaller, marks, back to my start):
    no settings box, no typed field. His changes are his (on this device).
    SOUND. None until the first tap on the logo: the AudioContext is created inside that tap. The zoom life (js/logo-zoom-life.js),
-   the sound engine (js/logo-sound.js) and Tone.js load only then, and never in Lite. One logo sounds at a time (LogoSound solo).
+   the sound engine (js/logo-sound.js, plain Web Audio, no library) loads only then, and never in Lite. One logo sounds at a time (LogoSound solo).
    Reduced motion: no glides or loops. Lite: the plain logo view, no zoom life and no sound (rule 2).
    PUMP TREE (rule 9): page 13 (js/phi-pumps.js) -> this logo 8 -> each visual layer 5 -> its motion parameter 3 -> its detail 2,
    all on anchor B (PhiPumps.B()). Only the open logo view runs them (one rAF while it is open).
@@ -26,7 +26,7 @@
   var PHI = 1.6180339887, G = 1 / PHI, KEY = 'buildit.logo', NS = 'http://www.w3.org/2000/svg';
   var $ = function (id) { return document.getElementById(id); };
   var RM = window.matchMedia ? matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
-  var own = 0.25; try { var o0 = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--own-step')); if (isFinite(o0)) own = o0; } catch (e) {}
+  var own = 0; try { var o0 = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--own-step')); if (isFinite(o0)) own = o0; } catch (e) {}
   function lite() { return !!(window.Adapt && Adapt.lite && Adapt.lite()); }
   function f(n) { return Math.pow(PHI, n); }
   function Bs() { var b = window.PhiPumps && PhiPumps.B ? PhiPumps.B() : null; return b || f(3 + own); }   // anchor B; fallback the page's own breathing beat
@@ -216,7 +216,7 @@
     if (window.Adapt) Adapt.note('logo', 'open');
     openView();
   }
-  function lifeScript(cb) { if (window.LogoZoomLife) return cb(); var s = document.createElement('script'); s.src = 'js/logo-zoom-life.js?v=1'; s.async = true; s.onload = cb; document.head.appendChild(s); }
+  function lifeScript(cb) { if (window.LogoZoomLife) return cb(); var s = document.createElement('script'); s.src = 'js/logo-zoom-life.js?v=2'; s.async = true; s.onload = cb; document.head.appendChild(s); }
   function openView() {
     if (!ov) { lastFocus = document.activeElement; ov = document.createElement('div'); ov.id = 'lz'; ov.className = 'lz-ov'; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true'); ov.setAttribute('aria-label', 'Your logo');
       ov.innerHTML = '<div class="lz-top"><div class="lz-fig" id="lz-fig"></div></div><div id="lz-ctl"></div>'; document.body.appendChild(ov); document.addEventListener('keydown', onKey);
@@ -330,5 +330,5 @@
   window.Logo = { step: step, handed: function () { return !!R.h; }, progress: progress, design: design, open: tap, refresh: function () { render(); },
     reset: function () { try { localStorage.removeItem(KEY); } catch (e) {} R = load(); render(); if (window.BuildMore) BuildMore.refresh(); } };
   function boot() { init(); setTimeout(function () { render(); }, T(-1) * 1000); }   // once Pieces / Dials have settled
-  if (!window.PhiPumps) { var s = document.createElement('script'); s.src = 'js/phi-pumps.js?v=1'; s.async = true; s.onload = s.onerror = boot; document.head.appendChild(s); } else boot();
+  if (!window.PhiPumps) { var s = document.createElement('script'); s.src = 'js/phi-pumps.js?v=2'; s.async = true; s.onload = s.onerror = boot; document.head.appendChild(s); } else boot();
 })();

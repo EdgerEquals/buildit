@@ -1,203 +1,220 @@
-/* LOGO SOUND ENGINE (this page's own copy of the Kids Club logo engine, v3 shape; logo sound and motion standard,
+/* LOGO SOUND ENGINE (this page's own copy of the Kids Club logo engine; logo sound and motion standard,
    /home/box/.config/logo-sound-motion-spec.md on the box). Changes only through this page's bot; never loads another page's files.
-   ARCHITECTURE  [Sequencer] -> MIDI events -> [ToneRenderer]. The sequencer is pure JS on the phi grid + the eight-stage ladder
-   (free-wheel rule 6: coupled damped glides, soft smoothstep bias points, never gates). The renderer is self-hosted Tone.js 15.1.22
-   (vendor/tone, MIT), loaded on the first logo tap only, on the AudioContext made inside that tap. Never in Lite.
+   PLAIN WEB AUDIO: no music library. Loaded on the first logo tap only, on the AudioContext made inside that tap. Never in Lite.
+   ARCHITECTURE  [Sequencer] -> note/control events -> [Renderer]. The sequencer is pure JS on the phi grid + the eight-stage ladder
+   (free-wheel rule 6: coupled damped glides, soft smoothstep bias points, never gates). Notes are semitones above the live base.
    BLEND m 0..1: tight/punchy (m=0) <-> airy/organic (m=1), wave = two sines PHI^10 and PHI^9 s (spec-locked, never repeats).
    PUMP TREE (rule 9): page 13 (js/phi-pumps.js) -> this logo 8 (PhiPumps.logo(id)) -> sound layers 5 -> chain parameters 3 ->
      details 2. Every node's periods hang off anchor B (PhiPumps.B(): moon clock + the kid's own rhythm), whole phi steps.
-   MICROCOSM (rule 10): root and loudness come from the page registry (daytime = sun height, tide = M2 clock, moon, clock = S2 clock,
-     ratio-pump, phi-adapt:<logo id>), all on-device sky clocks or this page's own pumps. No network call in this file.
-   LOUDNESS: quiet hours come from the Season pumps standard, not the clock: L = quiet x (1 + PHI^-4 x feed nudge), where quiet
-     (PhiPumps 'quiet') is 1 by day and PHI^-n at rest, eased by sun height through dusk and dawn; n = Dial 3's rung.
-   SOLO: only one logo sounds at a time (a new create() stops the previous engine).
-   FIXED VALUES: this copy still carries the engine's fixed voice values (filter ranges, levels, envelopes, polyphony, master
-     scale). They are listed in /workspace/logo-sound-fixed-params.md (box) and FLAGGED by the rule 12 self-check (docs/logo.md)
-     for Danny to move to ratios one by one; spec-locked values (ladder thresholds, grid, phrase lengths, wave) stay as the spec says.
-   API: LogoSound.create(ac, dest, {subscribe, events, logo}) -> engine {event(name), nudge(x), state(), stop(fade)} */
+   LOUDNESS (Kids Club "Loudness: device volume plus the amplitude matrix"): NO MASTER VOLUME. There is no overall gain node; the
+     device's own volume is the one overall control, and this file never reads or sets it. Every level, gain, velocity, send and
+     fade goes through amp(name), the AMPLITUDE MATRIX HOOK below. Danny hasn't defined the matrix yet, so the hook holds the
+     engine's existing levels unchanged, marked PENDING-DANNY (the standard: no new fixed level until he defines it). Quiet hours:
+     each level x quiet, where quiet (PhiPumps 'quiet') is 1 by day and PHI^-n at rest (sun height; n = Dial 3's rung).
+   PITCH (Kids Club "Pitch: no fixed root, two pumps"): no root note. Pump A: base = (1/B) x PHI^n, B = anchor B, so the kid's own
+     usage rhythm moves the base (busier = higher). Pump B: the mix of this page's feeds (sun height, M2 tide, moon, S2 clock,
+     ratio pump; this page has NO weather feed and none is added) sets a soft floor and headroom in whole phi rungs around the
+     sky-only base, within Danny's floor and ceiling (PITCH hook below, PENDING-DANNY). Every note, register, cutoff, partial and
+     filter is a ratio of the base; changes glide. Every time is the spec grid step x PHI^n.
+   SOLO: one logo sounds at a time (a new create() stops the previous engine).
+   API: LogoSound.create(ac, dest, {events, logo}) -> engine {event(name), nudge(x), state(), stop(fade)};
+        LogoSound.base() (live base Hz), LogoSound.level(name) (matrix level x quiet), LogoSound.matrix (set by Danny's matrix). */
 (function(G0){
   'use strict';
   var W=typeof window!=='undefined'?window:G0;
-  var PHI=1.6180339887,G=0.6180339887,STEP=0.2360679775,E=[0,0.0136,0.0357,0.0713,0.1290,0.2225,0.3736,0.618],HYS=0.0136,ZETA=Math.pow(PHI,-0.5),
-      PHR=[8,13,21],MODES=[[0,2,3,5,7,8,10],[0,2,3,5,7,9,10],[0,2,4,6,7,9,11],[0,2,4,7,9]],ROOT=28,
-      CH={synth:0,wood:1,glass:2,pad:3,breath:4,bird:5,sub:6,drums:9,macro:15},
-      CC={blend:16,density:17,low:18,filter:74,res:71,swing:19,colour:80,reverb:91,shimmer:93,vol:7,root:81,breath:2},
-      DEF_SUBS=['pump:page','daytime','quiet','tide','moon','ratio-pump','clock','component:theme'];
+  var PHI=1.6180339887,G=1/PHI,STEP=Math.pow(PHI,-3),ZETA=Math.pow(PHI,-0.5);
+  function P(n){return Math.pow(PHI,n);}
+  function S(n){return STEP*P(n);}   // a time: the spec grid step x PHI^n (seconds)
+  // spec-locked (logo-sound-motion-spec.md): ladder thresholds, hysteresis, phrase lengths (Fibonacci)
+  var E=[0,0.0136,0.0357,0.0713,0.1290,0.2225,0.3736,G],HYS=0.0136,PHR=[8,13,21];
+  var MODES=[[0,2,3,5,7,8,10],[0,2,3,5,7,9,10],[0,2,4,6,7,9,11],[0,2,4,7,9]];   // SCALE intervals above the base (ratios 2^(k/12))
+
+  // ===================== AMPLITUDE MATRIX HOOK (PENDING DANNY) =====================
+  // The one place every loudness value comes from. Danny hasn't defined the amplitude matrix yet: these are the engine's EXISTING
+  // levels, unchanged and listed for him (docs/logo.md). When he defines it, set LogoSound.matrix = function(name){return level;}
+  // (or replace this table); nothing else changes. 'head' was the old master scale: it is now folded into each voice, with no master node.
+  var AMP={
+    head:0.16, synth:0.5, wood:0.9, glass:0.35, pad:0.5, breath:0.3, bird:0.25, sub:0.9, sub2:0.355, hats:0.5, hat:0.1,   // PENDING-DANNY voices (sub2 was -9 dB; hat was -14 dB x 0.5)
+    sendLo:0.04, sendHi:0.5, send0:0.03, shim:0.9, makeup:Math.pow(PHI,1.5), padSus:0.8, compThr:-26, compRatio:3,         // PENDING-DANNY sends, sustain, dynamics
+    vPad:0.62, vHat:0.55, vHatB:0.5, vTrip:0.62, vTripFall:0.2, v808:0.9, v808lo:0.03, vPluck:0.8, vWood:0.9, vGlass:1.3,    // PENDING-DANNY velocities
+    vBird:0.5, brB:0.5, brS:0.6, accLo:0.82, accHi:0.18, sparkle:Math.pow(PHI,-9), swish:Math.pow(PHI,-8),                    // PENDING-DANNY velocities, zoom sounds
+    nudge:Math.pow(PHI,-4), nTide:Math.pow(PHI,-2), nMoon:Math.pow(PHI,-3), nRatio:Math.pow(PHI,-3), nClock:Math.pow(PHI,-4) // PENDING-DANNY feed nudges on loudness
+  };
+  function amp(k){var f=W.LogoSound&&W.LogoSound.matrix,v=typeof f==='function'?f(k):null;return typeof v==='number'&&isFinite(v)?v:AMP[k];}
+  // ===================== PITCH RANGE HOOK (PENDING DANNY) =====================
+  // start: n in base = (1/B) x PHI^n (rung 12 puts the sky-only base near the old engine's register); floor / ceil: the most whole
+  // phi rungs Pump B may give below / above the sky-only base. Danny's floor and ceiling: to set.
+  var PITCH={start:12, floor:2, ceil:2};   // PENDING-DANNY
+
   function lerp(a,b,t){return a+(b-a)*t;}
   function clamp(x,a,b){a=a==null?0:a;b=b==null?1:b;return x<a?a:x>b?b:x;}
   function sstep(x){x=clamp(x);return x*x*(3-2*x);}
-  function wave(t){return ((Math.sin(2*Math.PI*t/Math.pow(PHI,10))+Math.sin(2*Math.PI*t/Math.pow(PHI,9)+1))/2+1)/2;}
-  function v7(x){return Math.max(0,Math.min(127,Math.round(x*127)));}
-  // ---- local stub registry (when the page has no PhiPumps) ----
-  function stubNode(name,n,k0,depth,parent,seed){var P=[],ph=[];for(var j=0;j<n;j++){P.push(Math.pow(PHI,k0+j/2));ph.push(2*Math.PI*(((j+1+(seed||0))*G)%1));}
-    function modes(t){var s=0;for(var j=0;j<n;j++)s+=Math.sin(2*Math.PI*t/P[j]+ph[j]);return s/n;}
-    return {name:name,n:n,depth:depth,parent:parent||null,modes:modes,out:function(t){return (parent?parent.out(t):1)*(1+depth*modes(t));}};}
-  function stub(clock){var page=stubNode('page',13,4,0.146,null,0),f={
-      'pump:page':function(){return page.out(clock.mono());},
-      daytime:function(){var d=new Date(clock.wall()*1000);return -Math.cos(2*Math.PI*(d.getHours()+d.getMinutes()/60)/24);},
-      clock:function(){return Math.sin(2*Math.PI*(clock.wall()%3600)/3600);},
-      moon:function(){var ph=(((clock.wall()*1000-947182440000)/86400000/29.530588853)%1+1)%1;return -Math.cos(2*Math.PI*ph);}};
-    return {node:stubNode,page:page,subscribe:function(n){return {name:n,get:function(){return f[n]?f[n]():null;}};}};}
+  function wave(t){return ((Math.sin(2*Math.PI*t/P(10))+Math.sin(2*Math.PI*t/P(9)+1))/2+1)/2;}
+  function tanh(x){var e=Math.exp(2*x);return (e-1)/(e+1);}
+  function mono(){return (W.performance?performance.now():Date.now())/1000;}
+  function REG(){return W.PhiPumps&&W.PhiPumps.subscribe?W.PhiPumps:null;}
+  var subs={};
+  function feed(n){var R=REG();if(!R)return null;var s=subs[n]||(subs[n]=R.subscribe(n)),v=s.get();return typeof v==='number'&&isFinite(v)?v:null;}
+  function z(x){return x==null?0:x;}
+  function quiet(){var q=feed('quiet');return q==null?1:q;}
+  function level(k){return amp(k)*quiet();}
+  // ---- pitch pumps ----
+  function own(){try{var o=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--own-step'));return isFinite(o)?o:0;}catch(e){return 0;}}
+  function anchors(){var R=REG(),b=R&&R.B?R.B():null,b0=R&&R.B0?R.B0():null;b=b||b0||P(3+own());b0=b0||b;return {B:b,B0:b0};}   // fallback: the page's own breathing beat
+  function mix(){return P(-2)*z(feed('daytime'))+P(-3)*z(feed('tide'))+P(-4)*z(feed('moon'))+P(-4)*z(feed('ratio-pump'))+P(-5)*z(feed('clock'));}
+  function pitchTarget(){var a=anchors(),m=mix(),x=Math.log(a.B0/a.B)/Math.log(PHI),   // Pump A: rungs the kid's rhythm moves the base off the sky-only base
+      kf=Math.max(1,Math.min(PITCH.floor,1+Math.round(-m))),kh=Math.max(1,Math.min(PITCH.ceil,1+Math.round(m)));   // Pump B: floor and headroom rungs
+    return {B0:a.B0,x:x>0?kh*tanh(x/kh):kf*tanh(x/kf),kf:kf,kh:kh,mix:m};}   // soft floor and headroom, never a gate
+  function baseHz(B0,x){return P(PITCH.start+x)/B0;}
 
-  // ================= SEQUENCER (MIDI generator) =================
+  // ================= SEQUENCER =================
+  function tinyNode(){return {out:function(){return 1;}};}
   function Sequencer(o){o=o||{};
-    var rnd=o.random||Math.random,clock=o.clock||{wall:function(){return Date.now()/1000;},mono:function(){return (W.performance?performance.now():Date.now())/1000;},hour:function(){var d=new Date();return d.getHours()+d.getMinutes()/60;}};
-    var REG=o.registry||(W.PhiPumps&&W.PhiPumps.subscribe&&!o.local?W.PhiPumps:stub(clock)),node=REG.node||stubNode;
-    var subs={};(o.subscribe||DEF_SUBS).forEach(function(n){subs[n]=REG.subscribe(n);});
-    function feed(n){var s=subs[n];var v=s?s.get():null;return typeof v==='number'&&isFinite(v)?v:null;}
-    // pump tree: logo branch under the page root
-    var pageN=REG.page||{out:function(t){var v=feed('pump:page');return v==null?1:v;}},sd=0;
+    var rnd=Math.random,R=REG(),node=R&&R.node||tinyNode,sd=0;
+    var pageN=R&&R.page||tinyNode();
     function N(name,n,k0,d,par){sd+=1;return node(name,n,k0,d,par,sd);}
-    var logo=(REG.logo&&o.logo)?REG.logo(o.logo):N('logo',8,-1,Math.pow(PHI,-5),pageN),L={},Pm={},D={};
-    ['808','hats','plucks','pad','organic','shimmer'].forEach(function(k){L[k]=N(k,5,-2,Math.pow(PHI,-5),logo);});
-    [['blend','plucks'],['density','hats'],['low','808'],['filter','plucks'],['swing','hats'],['colour','pad'],['reverb','organic'],['shimmer','shimmer']].forEach(function(p){Pm[p[0]]=N(p[0],3,-3,Math.pow(PHI,-6),L[p[1]]);});
-    [['subDecay','low'],['jitter','swing'],['cutoff','filter'],['res','filter'],['pluckDecay','filter'],['breath','reverb'],['glassDecay','shimmer']].forEach(function(p){D[p[0]]=N(p[0],2,-4,Math.pow(PHI,-7),Pm[p[1]]);});
+    var logo=(R&&R.logo&&o.logo)?R.logo(o.logo):N('logo',8,-1,P(-5),pageN),L={},Pm={},D={};
+    ['808','hats','plucks','pad','organic','shimmer'].forEach(function(k){L[k]=N(k,5,-2,P(-5),logo);});
+    [['blend','plucks'],['density','hats'],['low','808'],['filter','plucks'],['swing','hats'],['colour','pad'],['reverb','organic'],['shimmer','shimmer']].forEach(function(p){Pm[p[0]]=N(p[0],3,-3,P(-6),L[p[1]]);});
+    [['subDecay','low'],['jitter','swing'],['cutoff','filter'],['res','filter'],['pluckDecay','filter'],['breath','reverb'],['glassDecay','shimmer']].forEach(function(p){D[p[0]]=N(p[0],2,-4,P(-7),Pm[p[1]]);});
     var PORD=['blend','density','low','filter','swing','colour','reverb','shimmer'];
-    var ev=o.events||{'star-drop':0.236,'shimmer':0.236},nudges=[],aff=o.logo?'phi-adapt:'+o.logo:null;if(aff&&!subs[aff])subs[aff]=REG.subscribe(aff);
+    var ev=o.events||{'star-drop':P(-3),'shimmer':P(-3)},nudges=[],aff=o.logo?'phi-adapt:'+o.logo:null;
     var y=[0,0,0,0,0,0,0,0],v=[0,0,0,0,0,0,0,0],tg=[0,0,0,0,0,0,0,0],fall=[0,0,0,0,0,0,0,0],lu=[0,0,0,0,0,0,0,0],first=true;
-    var root={x:0,v:0,tg:0,off:0},step=0,pIdx=0,pLen=PHR[0],pPos=0,deg=0,lastCC={},padOn=[],padRoot=0,breathOn=false,prog=80,loud=1,feedsNow={};
-    function mNow(){var t=clock.wall(),n=0;nudges=nudges.filter(function(q){var a=(t-q.t)/2.618;if(a>=1)return false;n+=q.a*(1-a)*(1-a);return true;});
-      var a=aff?feed(aff):null;return clamp((o.forceM!=null?o.forceM:wave(t))+n+0.09*(a||0));}
-    function ladder(m,phrase,tm){for(var i=0;i<8;i++){var tau=STEP*Math.pow(PHI,i),w=1/tau,u=i?clamp((y[i-1]+m)/2+0.236*tau*v[i-1]):m;
-        u=clamp(u*Pm[PORD[i]].out(tm));var d=u-lu[i];lu[i]=u;fall[i]+=((d<0?1:d>0?0:fall[i])-fall[i])*0.382;
-        if(i<5||phrase||first){var e=Math.max(0,E[i]-HYS*fall[i]);tg[i]=i===7?0.618*Math.pow(u,PHI):sstep((u-e)/(1-e));}
+    var root={x:0,v:0,tg:0,B0:null,pt:null},step=0,pIdx=0,pLen=PHR[0],pPos=0,deg=0,last={},padOn=[],breathOn=false,wv=0,loud=1,feedsNow={};
+    function now(){return Date.now()/1000;}
+    function mNow(){var t=now(),n=0;nudges=nudges.filter(function(q){var a=(t-q.t)/P(2);if(a>=1)return false;n+=q.a*(1-a)*(1-a);return true;});
+      var a=aff?feed(aff):null;return clamp((o.forceM!=null?o.forceM:wave(t))+n+P(-5)*z(a));}
+    function ladder(m,phrase,tm){for(var i=0;i<8;i++){var tau=STEP*P(i),w=1/tau,u=i?clamp((y[i-1]+m)/2+P(-3)*tau*v[i-1]):m;
+        u=clamp(u*Pm[PORD[i]].out(tm));var d=u-lu[i];lu[i]=u;fall[i]+=((d<0?1:d>0?0:fall[i])-fall[i])*P(-2);
+        if(i<5||phrase||first){var e=Math.max(0,E[i]-HYS*fall[i]);tg[i]=i===E.length-1?G*Math.pow(u,PHI):sstep((u-e)/(1-e));}
         if(first){y[i]=tg[i];v[i]=0;continue;}
         for(var s=0;s<4;s++){var h=STEP/4,a=w*w*(tg[i]-y[i])-2*ZETA*w*v[i];v[i]+=a*h;y[i]+=v[i]*h;}}
       first=false;}
-    function readFeeds(){var f={};['daytime','tide','moon','ratio-pump','clock'].forEach(function(n){f[n]=feed(n);});f.theme=feed('component:theme');feedsNow=f;
-      var z=function(x){return x==null?0:x;};
-      var S=0.382*z(f.daytime)+0.236*z(f.tide)+0.146*z(f.moon)+0.146*z(f['ratio-pump'])+0.09*z(f.clock);
-      root.tg=clamp(Math.round(3*S),-2,3);root.S=S;
-      var q=feed('quiet');f.quiet=q;var d4=Math.pow(PHI,-4);   // quiet hours from sun height + Dial 3 (PhiPumps 'quiet'); no wall-clock schedule
-      loud=(q==null?1:q)*(1+d4*(Math.pow(PHI,-2)*z(f.tide)+Math.pow(PHI,-3)*z(f.moon)+Math.pow(PHI,-3)*z(f['ratio-pump'])+d4*z(f.clock)))/(1+d4);}
-    function rootStep(){var w=1/0.618,c=0.236*0.618*v[5];for(var s=0;s<4;s++){var h=STEP/4,a=w*w*(root.tg+c-root.x)-2*w*root.v;root.v+=a*h;root.x+=root.v*h;}}
-    function rn(){return ROOT+Math.round(root.x);}
-    function noteN(base,dg,colour){var p=clamp(colour)*3,lo=Math.floor(Math.min(2.999,p)),md=MODES[rnd()<p-lo?lo+1:lo],k=((dg%md.length)+md.length)%md.length,o2=Math.floor(dg/md.length);return base+12*o2+md[k];}
-    function stepEvents(T){var out=[],tm=clock.mono();function E_(e){out.push(e);return e;}
+    function readFeeds(){var f={};['daytime','tide','moon','ratio-pump','clock','quiet'].forEach(function(n){f[n]=feed(n);});f.theme=feed('component:theme');feedsNow=f;
+      var pt=pitchTarget();root.tg=pt.x;root.pt=pt;if(root.B0==null){root.B0=pt.B0;root.x=pt.x;}
+      var d=amp('nudge');   // loudness = quiet x a small feed nudge, every weight from the matrix
+      loud=(f.quiet==null?1:f.quiet)*(1+d*(amp('nTide')*z(f.tide)+amp('nMoon')*z(f.moon)+amp('nRatio')*z(f['ratio-pump'])+amp('nClock')*z(f.clock)))/(1+d);}
+    function rootStep(){var w=PHI,c=P(-4)*v[5];for(var s=0;s<4;s++){var h=STEP/4,a=w*w*(root.tg+c-root.x)-2*w*root.v;root.v+=a*h;root.x+=root.v*h;}
+      if(root.pt)root.B0+=(root.pt.B0-root.B0)*P(-4);}   // the sky-only anchor drifts slowly; follow it with a glide
+    function noteN(base,dg,colour){var p=clamp(colour)*(MODES.length-1),lo=Math.min(MODES.length-2,Math.floor(p)),md=MODES[rnd()<p-lo?lo+1:lo],k=((dg%md.length)+md.length)%md.length,o2=Math.floor(dg/md.length);return base+12*o2+md[k];}
+    function stepEvents(T){var out=[],tm=mono();function E_(e){out.push(e);return e;}
       var phrase=pPos===0;if(phrase||first)readFeeds();
       ladder(mNow(),phrase,tm);rootStep();
       var b=y[0],d=y[1],lo=y[2],fl=y[3],sw=y[4],col=y[5],sp=y[6],sh=y[7];
       var lay={};for(var k in L)lay[k]=L[k].out(tm);var det={};for(var k2 in D)det[k2]=D[k2].out(tm);
-      if(feedsNow.theme===1)det.cutoff+=0.056;
-      var r=1+(PHI-1)*sw,t0=T+(step%2?(2*STEP*r/(1+r)-STEP):0),acc=0.82+0.18*((step*G)%1);
-      function J(){return clamp((rnd()*2-1)*0.009*det.jitter,-0.018,0.018);}
-      function cc(c,val,ch){ch=ch==null?CH.macro:ch;var key=ch+':'+c;if(lastCC[key]===val)return;lastCC[key]=val;E_({t:T,type:'cc',ch:ch,cc:c,val:val});}
-      if(step===0){E_({t:T,type:'cc',ch:CH.pad,cc:101,val:0});E_({t:T,type:'cc',ch:CH.pad,cc:100,val:0});E_({t:T,type:'cc',ch:CH.pad,cc:6,val:12});
-        [[CH.wood,108],[CH.glass,98],[CH.pad,89],[CH.breath,121],[CH.bird,123],[CH.sub,38]].forEach(function(q){E_({t:T,type:'pc',ch:q[0],prog:q[1]});});}
-      cc(CC.blend,v7(b));cc(CC.density,v7(d));cc(CC.low,v7(lo));cc(CC.filter,v7(clamp(fl*det.cutoff)));cc(CC.res,v7(clamp((1-fl)*det.res)));cc(CC.swing,v7(sw));
-      cc(CC.colour,v7(col));cc(CC.reverb,v7(sp));cc(CC.shimmer,v7(sh));cc(CC.vol,v7(loud));cc(CC.root,64+root.tg);
-      cc(CC.breath,v7(clamp((0.5*b+0.6*sh)*det.breath*lay.organic)),CH.breath);
-      if(!breathOn){breathOn=true;E_({t:T,type:'on',ch:CH.breath,n:64,v:100});}
-      // pad: chord per phrase, root glide by pitch bend
-      if(phrase){prog=prog===80?81:80;E_({t:T,type:'pc',ch:CH.synth,prog:prog});
-        padOn.forEach(function(n){E_({t:T,type:'off',ch:CH.pad,n:n});});padOn=[];padRoot=rn();
-        var ch=[0,3,4,5][pIdx%4],pv=v7(clamp(0.62*b*lay.pad*acc));
-        if(pv>0)[ch,ch+2,ch+4].forEach(function(dg){var n=noteN(padRoot+36,dg,col);padOn.push(n);E_({t:T+0.01,type:'on',ch:CH.pad,n:n,v:pv});});}
-      var bend=Math.round(clamp((root.x-(padRoot-ROOT))/12,-1,1)*8191);if(lastCC['pb']!==bend){lastCC['pb']=bend;E_({t:T,type:'bend',ch:CH.pad,bend:bend});}
-      // hats (ch10 note 42)
-      var hv=lay.hats*acc;
-      if(rnd()<lerp(0.92,0.14,d)){var t=t0+J();if(rnd()<0.38*(1-d)*(1-d)){for(var k3=0;k3<3;k3++){E_({t:t+k3*STEP/3,type:'on',ch:CH.drums,n:42,v:v7(clamp(0.62*hv*(1-0.2*k3)))});E_({t:t+k3*STEP/3+0.03,type:'off',ch:CH.drums,n:42});}}
-        else{E_({t:t,type:'on',ch:CH.drums,n:42,v:v7(clamp(0.55*hv*(1-0.5*b)))});E_({t:t+0.03,type:'off',ch:CH.drums,n:42});}}
-      // 808 on the root (ch7)
-      var pos=pPos%8;if(pos===0||pos===3||(pos===6&&rnd()<0.5)){var sv=v7(clamp(0.9*lerp(1,0.03,lo)*lay['808']*acc)),sdur=lerp(0.62,0.24,lo)*det.subDecay,t1=t0+J()*0.5;
-        if(sv>0){E_({t:t1,type:'on',ch:CH.sub,n:rn(),v:sv});E_({t:t1+sdur,type:'off',ch:CH.sub,n:rn()});}}
-      // plucks
-      if(rnd()<lerp(0.5,0.22,d)){deg+=[-2,-1,1,2,0,3][Math.floor(rnd()*6)];deg=Math.max(-3,Math.min(9,deg));
-        var pd=lerp(0.18,0.9,fl)*det.pluckDecay,t2=t0+J();
-        var n1=noteN(rn()+(b>0.5?36:24),deg,col),s1=v7(clamp(0.8*(1-b)*lay.plucks*acc));
-        if(s1>0){E_({t:t2,type:'on',ch:CH.synth,n:n1,v:s1});E_({t:t2+pd,type:'off',ch:CH.synth,n:n1});}
-        var n2=n1+12,w1=v7(clamp(0.9*b*lay.organic*acc)),t3=t2+(rnd()*2-1)*Math.pow(PHI,-6);
-        if(w1>0){E_({t:t3,type:'on',ch:CH.wood,n:n2,v:w1});E_({t:t3+pd,type:'off',ch:CH.wood,n:n2});}
-        var g1=v7(clamp(1.3*sh*lay.shimmer*acc));
-        if(g1>0&&sh>0.02){var gd=lerp(0.6,1.6,sh/0.618)*det.glassDecay;E_({t:t3+0.002,type:'on',ch:CH.glass,n:n1+24,v:g1});E_({t:t3+gd,type:'off',ch:CH.glass,n:n1+24});}}
-      // birdsong (ch6)
-      if(rnd()<0.035*b+0.05*sh){var t4=t0+rnd()*STEP,bv=v7(clamp(0.5*(b+sh)*lay.organic)),cn=3+(rnd()<0.5?0:1);
-        for(var c2=0;c2<cn;c2++){var nn=96+Math.floor(rnd()*6);E_({t:t4+c2*0.09,type:'on',ch:CH.bird,n:nn,v:bv});E_({t:t4+c2*0.09+0.06,type:'off',ch:CH.bird,n:nn});}}
+      if(feedsNow.theme===1)det.cutoff+=P(-6);
+      var r=1+(PHI-1)*sw,t0=T+(step%2?(2*STEP*r/(1+r)-STEP):0),acc=amp('accLo')+amp('accHi')*((step*G)%1);
+      function J(){var j=P(-10);return clamp((rnd()*2-1)*j*det.jitter,-2*j,2*j);}
+      function set(key,val){if(last[key]===val)return;last[key]=val;E_({t:T,type:'set',k:key,val:val});}
+      set('base',baseHz(root.B0,root.x));set('blend',b);set('filter',clamp(fl*det.cutoff));set('res',clamp((1-fl)*det.res));
+      set('reverb',sp);set('shimmer',sh);set('low',lo);set('loud',loud);set('breath',clamp((amp('brB')*b+amp('brS')*sh)*det.breath*lay.organic));
+      if(!breathOn){breathOn=true;E_({t:T,type:'on',ch:'breath',n:0,v:1});}
+      // pad: a chord per phrase, three octaves over the base; held notes glide with the base
+      if(phrase){wv^=1;set('wave',wv);
+        padOn.forEach(function(n){E_({t:T,type:'off',ch:'pad',n:n});});padOn=[];
+        var ch=[0,3,4,5][pIdx%4],pv=clamp(amp('vPad')*b*lay.pad*acc);
+        if(pv>0)[ch,ch+2,ch+4].forEach(function(dg){var n=noteN(12*3,dg,col);padOn.push(n);E_({t:T+S(-7),type:'on',ch:'pad',n:n,v:pv});});}
+      // hats, five octaves over the base
+      var hv=lay.hats*acc,HN=12*5;
+      if(rnd()<lerp(1-P(-5),P(-4),d)){var t=t0+J();if(rnd()<P(-2)*(1-d)*(1-d)){for(var k3=0;k3<3;k3++)E_({t:t+k3*STEP/3,type:'on',ch:'hat',n:HN,v:clamp(amp('vTrip')*hv*(1-amp('vTripFall')*k3))});}
+        else E_({t:t,type:'on',ch:'hat',n:HN,v:clamp(amp('vHat')*hv*(1-amp('vHatB')*b))});}
+      // sub on the base
+      var pos=pPos%8;if(pos===0||pos===3||(pos===6&&rnd()<0.5)){var sv=clamp(amp('v808')*lerp(1,amp('v808lo'),lo)*lay['808']*acc),t1=t0+J()/2;
+        if(sv>0)E_({t:t1,type:'on',ch:'sub',n:0,v:sv,dur:lerp(S(2),STEP,lo)*det.subDecay});}
+      // plucks (+ wood an octave up, + glass two octaves up)
+      if(rnd()<lerp(0.5,P(-3),d)){deg+=[-2,-1,1,2,0,3][Math.floor(rnd()*6)];deg=Math.max(-3,Math.min(9,deg));
+        var pd=lerp(S(-1),S(3),fl)*det.pluckDecay,t2=t0+J();
+        var n1=noteN(12*(b>0.5?3:2),deg,col),s1=clamp(amp('vPluck')*(1-b)*lay.plucks*acc);
+        if(s1>0)E_({t:t2,type:'on',ch:'synth',n:n1,v:s1,dur:pd});
+        var w1=clamp(amp('vWood')*b*lay.organic*acc),t3=t2+(rnd()*2-1)*P(-6);
+        if(w1>0)E_({t:t3,type:'on',ch:'wood',n:n1+12,v:w1,dur:pd});
+        var g1=clamp(amp('vGlass')*sh*lay.shimmer*acc);
+        if(g1>0&&sh>P(-8))E_({t:t3+S(-10),type:'on',ch:'glass',n:n1+12*2,v:g1,dur:lerp(S(2),S(4),sh/G)*det.glassDecay});}
+      // birdsong, over five octaves up
+      if(rnd()<P(-7)*b+P(-6)*sh){var t4=t0+rnd()*STEP,bv=clamp(amp('vBird')*(b+sh)*lay.organic),cn=rnd()<0.5?3:5;
+        for(var c2=0;c2<cn;c2++)E_({t:t4+c2*S(-2),type:'on',ch:'bird',n:12*5+8+Math.floor(rnd()*5),v:bv});}
       step++;pPos++;if(pPos>=pLen){pPos=0;pIdx++;pLen=PHR[pIdx%3];}
       return out;}
-    function allOff(T){var out=[];padOn.forEach(function(n){out.push({t:T,type:'off',ch:CH.pad,n:n});});padOn=[];if(breathOn)out.push({t:T,type:'off',ch:CH.breath,n:64});breathOn=false;return out;}
-    return {step:stepEvents,allOff:allOff,event:function(name){var a=ev[name];if(a)nudges.push({t:clock.wall(),a:a});},nudge:function(a){nudges.push({t:clock.wall(),a:+a||0});},
-      state:function(){return {m:mNow(),y:y.slice(),root:{offset:root.tg,pos:+root.x.toFixed(3),S:root.S,midi:rn()},loud:loud,feeds:feedsNow,step:step,phrase:[pIdx,pLen],
-        pumps:{page:pageN.out(clock.mono()),logo:logo.out(clock.mono())}};}};}
+    function allOff(T){var out=[];padOn.forEach(function(n){out.push({t:T,type:'off',ch:'pad',n:n});});padOn=[];if(breathOn)out.push({t:T,type:'off',ch:'breath',n:0});breathOn=false;return out;}
+    return {step:stepEvents,allOff:allOff,event:function(name){var a=ev[name];if(a)nudges.push({t:now(),a:a});},nudge:function(a){nudges.push({t:now(),a:+a||0});},
+      base:function(){return root.B0?baseHz(root.B0,root.x):null;},
+      state:function(){return {m:mNow(),y:y.slice(),pitch:{x:+root.x.toFixed(3),base:root.B0?+baseHz(root.B0,root.x).toFixed(2):null,range:root.pt},loud:loud,feeds:feedsNow,step:step,phrase:[pIdx,pLen]};}};}
 
-  // ================= RENDERER (Tone.js) =================
-  function hz(n){return 440*Math.pow(2,(n-69)/12);}
-  function ToneRenderer(T,dest){
-    var nodes=[];function K(x){nodes.push(x);return x;}
-    var master=K(new T.Gain(0));master.connect(dest);
-    var comp=K(new T.Compressor({threshold:-26,ratio:3,attack:0.01,release:0.236})).connect(master);
-    var bus=K(new T.Gain(1)).connect(comp),makeup=bus;
-    var revS=K(new T.Reverb({decay:0.618,preDelay:0.01,wet:1})).connect(comp),revL=K(new T.Reverb({decay:2.618,preDelay:0.03,wet:1})).connect(comp);
-    var sendS=K(new T.Gain(0.03)).connect(revS),sendL=K(new T.Gain(0)).connect(revL),shim=K(new T.Gain(0)).connect(revL);
-    function chan(vol){var g=K(new T.Gain(vol));g.connect(bus);g.connect(sendS);g.connect(sendL);return g;}
-    var C={};
-    C[0]=chan(0.5);var synth=K(new T.PolySynth(T.MonoSynth,{oscillator:{type:'square'},filter:{Q:6,type:'lowpass'},envelope:{attack:0.002,decay:0.236,sustain:0,release:0.146},filterEnvelope:{attack:0.003,decay:0.236,sustain:0.1,baseFrequency:600,octaves:2.6}}));synth.maxPolyphony=8;synth.connect(C[0]);
-    C[1]=chan(0.9);var wood=[0,1].map(function(){return K(new T.PluckSynth({attackNoise:1.2,dampening:3800,resonance:0.92})).connect(C[1]);}),wi=0;
-    C[2]=chan(0.35);var glass=K(new T.PolySynth(T.FMSynth,{harmonicity:5.07,modulationIndex:9,oscillator:{type:'sine'},envelope:{attack:0.002,decay:1.618,sustain:0,release:0.618},modulation:{type:'sine'},modulationEnvelope:{attack:0.002,decay:0.382,sustain:0,release:0.236}}));glass.maxPolyphony=6;glass.connect(C[2]);glass.connect(shim);
-    C[3]=chan(0.5);var padF=K(new T.Filter(1800,'lowpass')).connect(C[3]),pad=K(new T.PolySynth(T.AMSynth,{envelope:{attack:1.618,decay:0.618,sustain:0.8,release:2.618}}));pad.maxPolyphony=6;pad.connect(padF);
-    C[4]=chan(0);var brF=K(new T.Filter({type:'bandpass',frequency:2600,Q:0.7})).connect(C[4]),breath=K(new T.NoiseSynth({noise:{type:'pink'},envelope:{attack:0.618,decay:0.1,sustain:1,release:1.618}})).connect(brF);
-    C[5]=chan(0.25);var bird=K(new T.Synth({oscillator:{type:'sine'},envelope:{attack:0.006,decay:0.07,sustain:0,release:0.03}})).connect(C[5]);
-    C[6]=chan(0.9);var sub=K(new T.MembraneSynth({pitchDecay:0.045,octaves:2.5,envelope:{attack:0.003,decay:0.62,sustain:0,release:0.1}})).connect(C[6]),
-      sub2=K(new T.MembraneSynth({pitchDecay:0.045,octaves:2.5,envelope:{attack:0.003,decay:0.37,sustain:0,release:0.1}}));sub2.volume.value=-9;sub2.connect(C[6]);
-    C[9]=chan(0.5);var hat=K(new T.MetalSynth({envelope:{attack:0.001,decay:0.056,release:0.01},harmonicity:5.1,modulationIndex:32,resonance:4000,octaves:1.5}));hat.volume.value=-14;hat.connect(C[9]);
-    var st={filter:0.5,res:0.5,blend:0,reverb:0,shimmer:0,low:0};
-    function tgt(p,v,t,tc){try{p.setTargetAtTime(v,t,tc||0.06);}catch(e){}}
-    function applyMacro(t){var fl=st.filter,cut=lerp(1200,5200,fl);
-      try{synth.set({filter:{Q:lerp(0.7,8,st.res)},filterEnvelope:{baseFrequency:cut*0.5}});}catch(e){}
-      tgt(padF.frequency,lerp(900,3400,fl),t,0.382);wood.forEach(function(w){try{w.dampening=lerp(2400,5200,fl);}catch(e){}});
-      tgt(sendS.gain,lerp(0.04,0.5,st.reverb)*(1-st.reverb),t,0.236);tgt(sendL.gain,lerp(0.04,0.5,st.reverb)*st.reverb,t,0.236);tgt(shim.gain,st.shimmer*0.9,t,0.236);
-      tgt(makeup.gain,lerp(1,Math.pow(PHI,1.5),st.blend),t,0.382);
-      try{sub.envelope.decay=lerp(0.62,0.24,st.low);sub2.envelope.decay=lerp(0.37,0.15,st.low);}catch(e){}}
-    var held={};
-    function midi(e){var t=e.t;try{
-      if(e.type==='cc'){var x=e.val/127;
-        if(e.ch===15){if(e.cc===7)tgt(master.gain,x*0.16,t,0.382);else if(e.cc===74)st.filter=x;else if(e.cc===71)st.res=x;else if(e.cc===91)st.reverb=x;else if(e.cc===93)st.shimmer=x;else if(e.cc===16)st.blend=x;else if(e.cc===18)st.low=x;else return;applyMacro(t);}
-        else if(e.ch===4&&e.cc===2)tgt(C[4].gain,x*0.3,t,0.382);return;}
-      if(e.type==='pc'){if(e.ch===0)synth.set({oscillator:{type:e.prog===81?'sawtooth':'square'}});return;}
-      if(e.type==='bend'){if(e.ch===3)pad.set({detune:e.bend/8192*1200});return;}
-      var vel=(e.v||0)/127;
-      switch(e.ch){
-        case 0:if(e.type==='on')synth.triggerAttack(hz(e.n),t,vel);else synth.triggerRelease(hz(e.n),t);break;
-        case 1:if(e.type==='on'){wood[wi].triggerAttack(hz(e.n),t);wi^=1;}break;
-        case 2:if(e.type==='on')glass.triggerAttack(hz(e.n),t,vel);else glass.triggerRelease(hz(e.n),t);break;
-        case 3:if(e.type==='on'){pad.triggerAttack(hz(e.n),t,vel);held[e.n]=1;}else{pad.triggerRelease(hz(e.n),t);delete held[e.n];}break;
-        case 4:if(e.type==='on')breath.triggerAttack(t,1);else breath.triggerRelease(t);break;
-        case 5:if(e.type==='on'){var f=hz(e.n)*(0.9+0.1*Math.random());bird.triggerAttack(f,t,vel);bird.frequency.setValueAtTime(f,t);bird.frequency.exponentialRampToValueAtTime(f*1.4,t+0.055);}break;
-        case 6:if(e.type==='on'){sub.triggerAttack(hz(e.n),t,vel);sub2.triggerAttack(hz(e.n+12),t,vel);}break;
-        case 9:if(e.type==='on'&&e.n===42)hat.triggerAttackRelease(hz(84),0.03,t,vel*0.5);break;}
-    }catch(err){}}
-    return {midi:midi,ready:Promise.all([revS.ready,revL.ready]).catch(function(){}),
-      fadeIn:function(t){tgt(master.gain,0.12,t,0.618);},
-      stop:function(t,fade){tgt(master.gain,0,t,fade||0.06);setTimeout(function(){nodes.forEach(function(n){try{n.dispose();}catch(e){}});},600);}};}
+  // ================= RENDERER (plain Web Audio) =================
+  function Renderer(ac,dest){
+    var K=[],held={},base=P(PITCH.start)/anchors().B0,st={blend:0,filter:0.5,res:0.5,reverb:0,shimmer:0,low:0,loud:1,breath:0,wave:0},alive=true;
+    function g(v){var n=ac.createGain();n.gain.value=v==null?1:v;K.push(n);return n;}
+    function f(type,fr,q){var n=ac.createBiquadFilter();n.type=type;n.frequency.value=fr;if(q!=null)n.Q.value=q;K.push(n);return n;}
+    function tgt(p,v,t,tc){try{p.setTargetAtTime(v,Math.max(t,ac.currentTime),tc||S(-3));}catch(e){}}
+    function hz(n){return base*Math.pow(2,n/12);}   // a note: semitones over the live base (a ratio of the base)
+    function noise(sec,pink){var n=Math.floor(ac.sampleRate*sec),b=ac.createBuffer(1,n,ac.sampleRate),c=b.getChannelData(0),l=0;
+      for(var i=0;i<n;i++){var w=Math.random()*2-1;l=pink?l+(w-l)*P(-4):w;c[i]=pink?l*P(2):w;}return b;}
+    function ir(sec){var n=Math.floor(ac.sampleRate*sec),b=ac.createBuffer(2,n,ac.sampleRate);
+      for(var ch=0;ch<2;ch++){var c=b.getChannelData(ch);for(var i=0;i<n;i++)c[i]=(Math.random()*2-1)*Math.pow(1-i/n,P(2));}return b;}
+    var NZ=noise(STEP,false),PNZ=noise(P(2),true);
+    var comp=ac.createDynamicsCompressor();K.push(comp);comp.threshold.value=amp('compThr');comp.ratio.value=amp('compRatio');comp.attack.value=S(-7);comp.release.value=STEP;comp.connect(dest||ac.destination);
+    var bus=g(1);bus.connect(comp);
+    function verb(sec){var c=ac.createConvolver();c.buffer=ir(sec);c.connect(comp);K.push(c);return c;}
+    var revS=verb(S(2)),revL=verb(S(5)),sendS=g(amp('send0')),sendL=g(0),shim=g(0);sendS.connect(revS);sendL.connect(revL);shim.connect(revL);
+    var C={};['synth','wood','glass','pad','breath','bird','sub','hats'].forEach(function(k){var c=g(0);c.connect(bus);c.connect(sendS);c.connect(sendL);C[k]=c;});
+    function lv(k){return amp(k)*amp('head')*st.loud;}   // matrix level x matrix head x quiet hours (no master node)
+    function levels(t,tc){['synth','wood','glass','pad','bird','sub','hats'].forEach(function(k){tgt(C[k].gain,alive?lv(k):0,t,tc||S(1));});
+      tgt(C.breath.gain,alive?lv('breath')*st.breath:0,t,tc||S(1));}
+    var padF=f('lowpass',base*P(7));padF.connect(C.pad);
+    var brF=f('bandpass',base*P(9),G);brF.connect(C.breath);var brSrc=null,brG=null;
+    function macro(t){var fl=st.filter;
+      tgt(padF.frequency,base*P(lerp(6,9,fl)),t,S(1));tgt(brF.frequency,base*P(9),t,S(1));
+      var sv=lerp(amp('sendLo'),amp('sendHi'),st.reverb);tgt(sendS.gain,sv*(1-st.reverb),t,STEP);tgt(sendL.gain,sv*st.reverb,t,STEP);tgt(shim.gain,st.shimmer*amp('shim'),t,STEP);
+      tgt(bus.gain,lerp(1,amp('makeup'),st.blend),t,S(1));
+      Object.keys(held).forEach(function(n){held[n].oscs.forEach(function(o){tgt(o.o.frequency,hz(+n)*o.r,t,S(2));});});}   // held pad notes glide with the base
+    function env(gn,t,peak,a,d,sus){gn.gain.setValueAtTime(0,t);gn.gain.linearRampToValueAtTime(peak,t+a);gn.gain.setTargetAtTime(peak*(sus||0),t+a,d/3);}
+    function osc(type,fr,t){var o=ac.createOscillator();o.type=type;o.frequency.setValueAtTime(fr,t);o.start(t);return o;}
+    function end(nodes,t){nodes.forEach(function(o){try{o.stop(t);}catch(e){}});}
+    var V={
+      synth:function(e,t){var fr=hz(e.n),o=osc(st.wave?'sawtooth':'square',fr,t),lp=ac.createBiquadFilter(),a=ac.createGain(),c=base*P(lerp(7,10,st.filter));
+        lp.type='lowpass';lp.Q.value=P(lerp(-1,4,st.res));lp.frequency.setValueAtTime(c*G,t);lp.frequency.linearRampToValueAtTime(c*P(2),t+S(-9));lp.frequency.setTargetAtTime(c*G,t+S(-9),S(-1));
+        env(a,t,e.v,S(-10),STEP,0);a.gain.setTargetAtTime(0,t+e.dur,S(-1));o.connect(lp);lp.connect(a);a.connect(C.synth);end([o],t+e.dur+S(3));},
+      wood:function(e,t){var fr=hz(e.n),o=osc('triangle',fr,t),a=ac.createGain(),s=ac.createBufferSource(),bp=ac.createBiquadFilter(),b=ac.createGain();
+        env(a,t,e.v,S(-10),Math.min(e.dur,STEP),0);o.connect(a);a.connect(C.wood);
+        s.buffer=NZ;bp.type='bandpass';bp.frequency.value=fr;bp.Q.value=P(5);env(b,t,e.v*PHI,S(-10),S(-3),0);s.connect(bp);bp.connect(b);b.connect(C.wood);s.start(t);end([o,s],t+e.dur+S(1));},
+      glass:function(e,t){var fr=hz(e.n),c=osc('sine',fr,t),m=osc('sine',fr*P(3),t),mg=ac.createGain(),a=ac.createGain();
+        mg.gain.setValueAtTime(fr*P(3)*P(4),t);mg.gain.setTargetAtTime(0,t+S(-10),S(1)/3);m.connect(mg);mg.connect(c.frequency);
+        env(a,t,e.v,S(-10),e.dur,0);c.connect(a);a.connect(C.glass);a.connect(shim);end([c,m],t+e.dur+S(2));},
+      bird:function(e,t){var fr=hz(e.n)*(1-P(-5)*Math.random()),o=osc('sine',fr,t),a=ac.createGain();
+        o.frequency.exponentialRampToValueAtTime(fr*PHI,t+S(-3));env(a,t,e.v,S(-8),S(-3),0);o.connect(a);a.connect(C.bird);end([o],t+S(0));},
+      sub:function(e,t){[[0,'sub',e.dur],[12,'sub2',e.dur*G]].forEach(function(q){var fr=hz(q[0]),o=osc('sine',fr*P(3),t),a=ac.createGain();
+        o.frequency.exponentialRampToValueAtTime(fr,t+S(-3));env(a,t,e.v*(q[1]==='sub2'?amp('sub2'):1),S(-9),q[2],0);o.connect(a);a.connect(C.sub);end([o],t+q[2]+S(1));});},
+      hat:function(e,t){var s=ac.createBufferSource(),hp=ac.createBiquadFilter(),a=ac.createGain();s.buffer=NZ;hp.type='highpass';hp.frequency.value=hz(e.n)*P(3);
+        env(a,t,e.v*amp('hat'),S(-12),S(-3),0);s.connect(hp);hp.connect(a);a.connect(C.hats);s.start(t);end([s],t+S(0));},
+      pad:function(e,t){var fr=hz(e.n),a=ac.createGain(),os=[{o:osc('sine',fr,t),r:1},{o:osc('triangle',fr*2,t),r:2}],m=ac.createGain();m.gain.value=P(-2);
+        os[0].o.connect(a);os[1].o.connect(m);m.connect(a);env(a,t,e.v,S(4),S(2),amp('padSus'));a.connect(padF);held[e.n]={a:a,oscs:os};},
+      breath:function(e,t){if(brSrc)return;brSrc=ac.createBufferSource();brSrc.buffer=PNZ;brSrc.loop=true;brG=ac.createGain();brG.gain.setValueAtTime(0,t);brG.gain.setTargetAtTime(1,t,S(2)/3);
+        brSrc.connect(brG);brG.connect(brF);brSrc.start(t);}};
+    function off(e,t){if(e.ch==='pad'){var h=held[e.n];if(!h)return;delete held[e.n];h.a.gain.cancelScheduledValues(t);h.a.gain.setTargetAtTime(0,t,S(5)/3);end(h.oscs.map(function(x){return x.o;}),t+S(5)*2);}
+      else if(e.ch==='breath'&&brSrc){brG.gain.setTargetAtTime(0,t,S(4)/3);end([brSrc],t+S(4)*2);brSrc=null;}}
+    function ev(e){var t=Math.max(e.t,ac.currentTime);try{
+      if(e.type==='set'){st[e.k]=e.val;if(e.k==='base'){base=e.val;macro(t);}else if(e.k==='loud'||e.k==='breath')levels(t);else if(e.k!=='wave')macro(t);return;}
+      if(e.type==='off')return off(e,t);
+      if(V[e.ch])V[e.ch](e,t);}catch(err){}}
+    return {ev:ev,base:function(){return base;},
+      fadeIn:function(t){levels(t,S(2));macro(t);},
+      stop:function(t,fade){alive=false;levels(t,fade||S(-3));setTimeout(function(){end(Object.keys(held).reduce(function(a,n){return a.concat(held[n].oscs.map(function(x){return x.o;}));},brSrc?[brSrc]:[]),ac.currentTime);
+        K.forEach(function(n){try{n.disconnect();}catch(e){}});},Math.max(fade||0,STEP)*P(3)*1000);}};}
 
-  // ================= lazy loading (no feed fetch: every feed is on-device) =================
-  var toneP=null;
-  function base(){var s=document.querySelector('script[src*="logo-sound.js"]');return s?s.src.replace(/js\/logo-sound\.js.*$/,''):'';}
-  function loadTone(){if(W.Tone)return Promise.resolve(W.Tone);if(toneP)return toneP;
-    toneP=new Promise(function(res,rej){var s=document.createElement('script');s.src=base()+'vendor/tone/Tone.js?v=15.1.22';s.async=true;s.onload=function(){W.Tone?res(W.Tone):rej(0);};s.onerror=function(){toneP=null;rej(0);};document.head.appendChild(s);});return toneP;}
   // ================= engine =================
-  // VOICES: a logo may bring its own Sequencer + Renderer pair (LogoSound.voices[name]); this page registers none.
-  // The scheduler, lazy Tone load and solo rule stay here. SOLO: only one logo sounds at a time; creating an engine stops the one before.
-  // LIVE: each running engine publishes a small state snapshot in LogoSound.live[logo id] (used by the live mini-mapped open/close sounds).
-  var voices={},live={},current=null;
-  function create(ac,dest,o){o=o||{};var alive=true,seq=null,R=null,timer=0,next=0,log=o.record?[]:null,pend=[],V=o.voice?voices[o.voice]:null;
-    var api={event:function(n){if(seq)seq.event(n);else pend.push(['e',n]);},nudge:function(a){if(seq)seq.nudge(a);else pend.push(['n',a]);},
-      state:function(){return seq?seq.state():null;},log:function(){return log?log.slice():null;},
-      stop:function(fade){if(!alive)return;alive=false;if(current===api)current=null;clearTimeout(timer);if(R&&seq){seq.allOff(ac.currentTime).forEach(R.midi);R.stop(ac.currentTime,fade);}}};
+  var live={},current=null;
+  function create(ac,dest,o){o=o||{};var alive=true,timer=0,next=0,seq=Sequencer({events:o.events,logo:o.logo,forceM:o.forceM}),R=Renderer(ac,dest);
+    var api={event:function(n){seq.event(n);},nudge:function(a){seq.nudge(a);},state:function(){return seq.state();},base:function(){return R.base();},
+      stop:function(fade){if(!alive)return;alive=false;if(current===api)current=null;clearTimeout(timer);seq.allOff(ac.currentTime).forEach(R.ev);R.stop(ac.currentTime,fade);}};
     if(current&&current!==api){try{current.stop();}catch(e){}}current=api;
-    loadTone().then(function(T){if(!alive)return;
-      try{var d0=T.getContext();if(d0.rawContext!==ac){T.setContext(ac);try{d0.dispose();}catch(e){}}}catch(e){}   // onto the tap's own context; the Tone bundle makes a default one as it loads, so close that at once (one live context)
-      var so={subscribe:o.subscribe,events:o.events,logo:o.logo,forceM:o.forceM,forceD:o.forceD,feeds:o.feeds,forceHour:o.forceHour};
-      R=V?V.Renderer(T,dest):ToneRenderer(T,dest);seq=V?V.Sequencer(so):Sequencer(so);
-      pend.forEach(function(p){p[0]==='e'?seq.event(p[1]):seq.nudge(p[1]);});pend=[];
-      R.ready.then(function(){if(!alive)return;next=ac.currentTime+0.1;R.fadeIn(ac.currentTime);tick();});
-    }).catch(function(){});
-    function tick(){if(!alive)return;if(next<ac.currentTime)next=ac.currentTime+0.05;
-      while(next<ac.currentTime+0.3){var evs=seq.step(next);for(var i=0;i<evs.length;i++){R.midi(evs[i]);if(log){log.push(evs[i]);if(log.length>4000)log.splice(0,1000);}}next+=STEP;}
-      if(o.logo){try{var q=seq.state();live[o.logo]={at:Date.now(),m:q.m,D:q.D,midi:q.root&&q.root.midi,loud:q.loud,day:q.day};}catch(e){}}
-      timer=setTimeout(tick,100);}
+    next=ac.currentTime+S(-2);
+    function tick(){if(!alive)return;if(next<ac.currentTime)next=ac.currentTime+S(-3);
+      while(next<ac.currentTime+S(1)){var evs=seq.step(next);for(var i=0;i<evs.length;i++)R.ev(evs[i]);next+=STEP;}
+      if(o.logo){try{var q=seq.state();live[o.logo]={at:Date.now(),m:q.m,base:q.pitch.base,loud:q.loud};}catch(e){}}
+      timer=setTimeout(tick,S(-2)*1000);}
+    tick();R.fadeIn(ac.currentTime);
     return api;}
-  W.LogoSound={create:create,Sequencer:Sequencer,wave:wave,THRESHOLDS:E.slice(),CH:CH,CC:CC,STEP:STEP,
-    voices:voices,live:live,current:function(){return current;},
-    util:{PHI:PHI,G:G,STEP:STEP,E:E,HYS:HYS,ZETA:ZETA,lerp:lerp,clamp:clamp,sstep:sstep,wave:wave,v7:v7,hz:hz,stub:stub,stubNode:stubNode}};
+  function base(){if(current)return current.base();var p=pitchTarget();return baseHz(p.B0,p.x);}
+  W.LogoSound={create:create,Sequencer:Sequencer,wave:wave,STEP:STEP,live:live,current:function(){return current;},
+    base:base,level:level,amp:amp,AMP:AMP,PITCH:PITCH,pitch:pitchTarget,matrix:null};
 })(this);
