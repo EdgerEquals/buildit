@@ -25,10 +25,28 @@ moon clock come from its on-device sky clocks. Rollback for the live page: tag `
 
 ## Hand-over (the logo step)
 - The logo step is the first Build more item, "Make your logo yours" (also "Make it yours now" in the logo view, after step 1).
-- Opening it stops auto-assembly for good. What is built is kept as his start (and "Back to my start" returns to it).
+- Opening it stops auto-assembly for good. What is built is kept as his start (and "Back to my original" returns to it).
 - The one-time light hint is the help orb's own grow-on-drop on the logo: "This logo is yours now... Tap it any time to change it."
 - After that, tapping the logo opens the logo view: tiles and buttons only (pieces on/off, bigger/smaller, colours, orbit marks,
-  back to my start, sound on/off). No settings box and no typed field.
+  step back, back to my original, sound on/off). No settings box and no typed field.
+
+## One start, independent per site (Kids Club, 26 Oct 2026)
+**The shared start recipe** (`startFrom()` in `js/logo.js`, recipe 1). Any of his sites computes his start the same way:
+1. Path: the naming step, the first learn round, then each first-build piece in page order (bot, orbit, light, tide, DJ, colours,
+   rhythm). Each step gives one layer: ring, middle, bot ball, orbit, light, wave, beat bars, colours, rhythm ticks.
+2. On/off: a layer is on when its step is done (from his own records and answer sets on that device).
+3. Colour: his love-most pick for that part; for the ring, middle and bars, his love-most palette once the colours step is done.
+4. Marks: the orbit emoji set he picked (an offered set only). Size: rung 0 for every layer. Tint: on once colours is done.
+Inputs are his own path and picks only, so the same answers give the same start on every site. Where he made no pick, a layer
+falls back to that site's own page colour, so those layers can differ between sites until he picks (flagged for the page owner).
+
+**Independent after that.** The start is taken once, at the hand-over, and kept as "my original". From then on this site keeps
+its own state under `buildit.logo:<site path>`. Another site's key never matches, so nothing is shared or overwritten.
+An earlier unscoped preview record on this site is moved to this site's key once.
+
+**Live, no approval.** His tile edits apply on this site at once (header logo and the open view), with no approval step.
+"Back to my original" sits near the top of the editor at all times. "Step back" undoes his last edits one at a time (the
+last 8 are kept, a Fibonacci count; "Back to my original" can be stepped back too). All on this device, this site only.
 
 ## Sound and motion
 - No AudioContext until his first tap on the logo; it is created inside that tap. The sound engine and zoom life load then.
@@ -53,8 +71,8 @@ moon clock come from its on-device sky clocks. Rollback for the live page: tag `
   no network call was added). Flagged for the page owner.
 
 ## On this device only
-`localStorage 'buildit.logo'`: handed-over time, hint shown, sound off, layers seen, and his logo (layer ids, picked colours, size
-rungs, an offered mark set). No typed text, no names, nothing sent. `Logo.reset()` clears it.
+`localStorage 'buildit.logo:<site path>'`: handed-over time, hint shown, sound off, layers seen, his logo and his original (layer
+ids, picked colours, size rungs, an offered mark set), and his last 8 edits for Step back. No typed text, no names, nothing sent. `Logo.reset()` clears this site's record only.
 
 ## Self-check alert (rule 12)
 `python3 tools/phi_selfcheck.py js/logo.js js/phi-pumps.js js/logo-zoom-life.js js/logo-sound.js`: the logo, pump and zoom files report

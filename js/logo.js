@@ -10,20 +10,24 @@
    before this existed sees his logo already built. Each newly done step glides in (free-wheel, B x PHI^-1, cascaded B x PHI^-4).
    HAND-OVER. The logo step is the next Build more item ("Make your logo yours"). Opening it stops auto-assembly for good: what is
    built becomes his start and is kept. A light hint shows once (the help orb's own grow-on-drop on the logo). From then on tapping
-   the logo opens the logo view with tiles and buttons only (layers on/off, colours, bigger/smaller, marks, back to my start):
+   the logo opens the logo view with tiles and buttons only (layers on/off, colours, bigger/smaller, marks, step back, back to my original):
    no settings box, no typed field. His changes are his (on this device).
    SOUND. None until the first tap on the logo: the AudioContext is created inside that tap. The zoom life (js/logo-zoom-life.js),
    the sound engine (js/logo-sound.js, plain Web Audio, no library) loads only then, and never in Lite. One logo sounds at a time (LogoSound solo).
    Reduced motion: no glides or loops. Lite: the plain logo view, no zoom life and no sound (rule 2).
    PUMP TREE (rule 9): page 13 (js/phi-pumps.js) -> this logo 8 -> each visual layer 5 -> its motion parameter 3 -> its detail 2,
    all on anchor B (PhiPumps.B()). Only the open logo view runs them (one rAF while it is open).
-   ON THIS DEVICE ONLY: localStorage 'buildit.logo' = {v, h (handed-over time or 0), hint, mute, seen (layer ids), own and start
-   (layer ids with a picked colour, a size rung and the orbit mark set)}. Colours and emoji come only from offered options; never
-   typed text, never a name, never sent anywhere. Logo.reset() clears it. */
+   ONE START, INDEPENDENT PER SITE (Kids Club 12:53 / 12:57 AWST): the start is startFrom(), the shared start recipe (docs/logo.md),
+   which any of his sites computes the same way from his own path and picks. After the hand-over each site keeps its own state:
+   the key includes this site's path, so another site never shares or overwrites it. His tile edits go live on this site at once,
+   with no approval step; "Back to my original" is always there, and "Step back" undoes his last edits (8 kept, Fibonacci).
+   ON THIS DEVICE ONLY: localStorage 'buildit.logo:<site path>' = {v, h (handed-over time or 0), hint, mute, seen (layer ids), own,
+   start (layer ids with a picked colour, a size rung and the orbit mark set) and hist (his last edits)}. Colours and emoji come only
+   from offered options; never typed text, never a name, never sent anywhere. Logo.reset() clears this site's record only. */
 (function () {
   'use strict';
   if (window.Logo) return;
-  var PHI = 1.6180339887, G = 1 / PHI, KEY = 'buildit.logo', NS = 'http://www.w3.org/2000/svg';
+  var PHI = 1.6180339887, G = 1 / PHI, KEY = 'buildit.logo:' + String(location.pathname || '/').replace(/index\.html$/, ''), OLD = 'buildit.logo', HIST = 8, NS = 'http://www.w3.org/2000/svg';
   var $ = function (id) { return document.getElementById(id); };
   var RM = window.matchMedia ? matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
   var own = 0; try { var o0 = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--own-step')); if (isFinite(o0)) own = o0; } catch (e) {}
@@ -36,7 +40,10 @@
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
 
   // ---------------- the on-device record ----------------
-  function load() { try { var d = JSON.parse(localStorage.getItem(KEY) || 'null'); if (d && d.v === 1) return d; } catch (e) {} return { v: 1, h: 0, hint: 0, mute: 0, seen: [], own: null, start: null }; }
+  function load() {
+    try { if (localStorage.getItem(KEY) == null && localStorage.getItem(OLD) != null) { localStorage.setItem(KEY, localStorage.getItem(OLD)); localStorage.removeItem(OLD); } } catch (e) {}   // earlier preview's unscoped key: this site's own
+    try { var d = JSON.parse(localStorage.getItem(KEY) || 'null'); if (d && d.v === 1) { d.hist = d.hist || []; return d; } } catch (e) {}
+    return { v: 1, h: 0, hint: 0, mute: 0, seen: [], own: null, start: null, hist: [] }; }
   var R = load();
   function save() { try { localStorage.setItem(KEY, JSON.stringify(R)); } catch (e) {} }
 
@@ -108,13 +115,17 @@
       bars: (pal && pal.a2) || (tinted ? page.ac2 : page.mu), ticks: (pal && pal.tx) || page.tx, orbit: page.mu, tint: (pal && pal.a2) || page.ac2
     };
   }
-  // the design: from his live progress until the hand-over, then his own copy for good
-  function auto() {
-    var pr = progress(), done = {}; pr.steps.forEach(function (s) { done[s.id] = s.done; });
-    var tint = !!done.colours, col = colours(tint), L = {};
-    LAYERS.forEach(function (l) { L[l.id] = { on: !!done[l.from], c: col[l.id] || null, s: 0 }; });
-    return { layers: L, marks: pickedMarks(), tint: tint };
+  // THE SHARED START RECIPE (one start for all his sites; docs/logo.md). Pure: the same inputs give the same start on any site.
+  // in = {done: {step id: true/false}, col: {layer id: colour}, marks: an offered emoji set}. Each layer is on when the step it
+  // comes from is done, in its colour, at size rung 0; tint is on once the colours step is done.
+  function startFrom(inp) {
+    var L = {}; LAYERS.forEach(function (l) { L[l.id] = { on: !!inp.done[l.from], c: (inp.col && inp.col[l.id]) || null, s: 0 }; });
+    return { r: 1, layers: L, marks: inp.marks || '', tint: !!inp.done.colours };
   }
+  // this site's inputs for the recipe: his path and picks from this device
+  function inputs() { var pr = progress(), done = {}; pr.steps.forEach(function (s) { done[s.id] = s.done; }); return { done: done, col: colours(!!done.colours), marks: pickedMarks() }; }
+  // the design: from his live progress until the hand-over, then this site's own copy for good
+  function auto() { return startFrom(inputs()); }
   function design() { return R.h && R.own ? R.own : auto(); }
 
   // ---------------- drawing (viewBox: the unit circle; every size a PHI power of the half-size) ----------------
@@ -239,9 +250,10 @@
         return '<button type="button" class="lz-t' + (s.on ? '' : ' off') + '" data-layer="' + l.id + '" aria-pressed="' + (sel === l.id) + '" aria-label="' + esc(l.name) + (s.on ? ' (on)' : ' (off)') + '">' + l.icon + '<small>' + (s.on ? 'on' : 'off') + '</small></button>'; }).join('') + '</div>';
       var cur = D.layers[sel] || {};
       h += '<div class="lz-row"><button type="button" class="btn ghost2" id="lz-onoff">' + (cur.on ? 'Take away: ' : 'Add: ') + esc(nameOf(sel)) + '</button><button type="button" class="btn ghost2" id="lz-small">\u2796 Smaller</button><button type="button" class="btn ghost2" id="lz-big">\u2795 Bigger</button></div>';
+      h += '<div class="lz-row"><button type="button" class="btn ghost2" id="lz-back"' + (R.hist.length ? '' : ' disabled') + '>\u21B6 Step back' + (R.hist.length ? ' (' + R.hist.length + ')' : '') + '</button><button type="button" class="btn ghost2" id="lz-start">\u21BA Back to my original</button></div>';   // always near the top
       h += '<p class="lz-h">Colour for ' + esc(nameOf(sel)) + '</p><div class="lz-row" id="lz-cols">' + swatches().map(function (c) { return '<button type="button" class="lz-t" data-col="' + c + '" aria-pressed="' + (cur.c === c) + '" aria-label="Colour ' + c + '"><span class="lz-sw" style="background:' + c + '"></span></button>'; }).join('') + '</div>';
       if (sel === 'orbit') h += '<p class="lz-h">Orbit marks</p><div class="lz-row" id="lz-marks">' + markSets().slice(0, 8).map(function (m) { return '<button type="button" class="lz-t" data-mark="' + esc(m) + '" aria-pressed="' + (D.marks === m) + '">' + esc(m.split(' ').join('')) + '</button>'; }).join('') + '</div>';
-      h += '<div class="lz-row"><button type="button" class="btn ghost2" id="lz-start">\u21BA Back to my start</button>' + sndBtn() + '<button type="button" class="btn" id="lz-close">\u2713 Done</button></div>';
+      h += '<div class="lz-row">' + sndBtn() + '<button type="button" class="btn" id="lz-close">\u2713 Done</button></div>';
     }
     var foc = document.activeElement && document.activeElement.id;
     box.innerHTML = h; wire(); if (foc && $(foc)) try { $(foc).focus({ preventScroll: true }); } catch (e) {}
@@ -257,7 +269,10 @@
     Object.keys(D.layers).forEach(function (k) { add(D.layers[k].c); });
     return L.slice(0, 13);
   }
-  function edit(fn) { if (!R.h || !R.own) return; fn(R.own); save(); render(); controls(); }
+  // live, no approval: each tile edit applies on this site at once; the state before it goes on his short step-back history
+  function edit(fn) { if (!R.h || !R.own) return; var was = JSON.stringify(R.own); fn(R.own); if (JSON.stringify(R.own) === was) return controls();
+    R.hist.push(JSON.parse(was)); if (R.hist.length > HIST) R.hist.splice(0, R.hist.length - HIST); save(); render(); controls(); }
+  function back() { if (!R.h || !R.hist.length) return; R.own = R.hist.pop(); save(); render(); controls(); }
   function wire() {
     var q = function (id, fn) { var e = $(id); if (e) e.onclick = fn; };
     q('lz-close', closeView);
@@ -274,6 +289,7 @@
     q('lz-small', function () { edit(function (o) { var s = o.layers[sel]; s.on = true; s.s = Math.max(-2, (s.s || 0) - 1); }); });
     var cs = ov.querySelectorAll('[data-col]'); for (var j = 0; j < cs.length; j++) cs[j].onclick = function () { var c = this.getAttribute('data-col'); if (!HEX.test(c)) return; edit(function (o) { o.layers[sel].c = c; o.layers[sel].on = true; }); };
     var ms = ov.querySelectorAll('[data-mark]'); for (var k = 0; k < ms.length; k++) ms[k].onclick = function () { var m = this.getAttribute('data-mark'); if (markSets().indexOf(m) < 0) return; edit(function (o) { o.marks = m; o.layers.orbit.on = true; }); };
+    q('lz-back', back);
     q('lz-start', function () { if (!R.start) return; edit(function (o) { var s = JSON.parse(JSON.stringify(R.start)); o.layers = s.layers; o.marks = s.marks; o.tint = s.tint; }); });
   }
   function startLife() {
@@ -308,7 +324,7 @@
   // ---------------- the logo step: hand-over (for good) ----------------
   function handover() {
     if (R.h) return false;
-    var D = auto(); R.h = Date.now(); R.own = JSON.parse(JSON.stringify(D)); R.start = JSON.parse(JSON.stringify(D)); R.hint = 0; save();
+    var D = auto(); R.h = Date.now(); R.own = JSON.parse(JSON.stringify(D)); R.start = JSON.parse(JSON.stringify(D)); R.hist = []; R.hint = 0; save();
     render(); if (window.BuildMore) BuildMore.refresh(); return true;
   }
   function step() {
@@ -327,7 +343,8 @@
   document.addEventListener('bi:answers', later);
   document.addEventListener('bi:open', function () { setTimeout(init, 0); });
   document.addEventListener('bi:lock', function () { closeView(); if (btn) btn.remove(); btn = null; svgH = null; if (AC) try { AC.close(); } catch (e) {} AC = null; });
-  window.Logo = { step: step, handed: function () { return !!R.h; }, progress: progress, design: design, open: tap, refresh: function () { render(); },
+  window.Logo = { step: step, handed: function () { return !!R.h; }, progress: progress, design: design, open: tap, startFrom: startFrom, inputs: inputs,
+    back: back, history: function () { return R.hist.length; }, key: function () { return KEY; }, refresh: function () { render(); },
     reset: function () { try { localStorage.removeItem(KEY); } catch (e) {} R = load(); render(); if (window.BuildMore) BuildMore.refresh(); } };
   function boot() { init(); setTimeout(function () { render(); }, T(-1) * 1000); }   // once Pieces / Dials have settled
   if (!window.PhiPumps) { var s = document.createElement('script'); s.src = 'js/phi-pumps.js?v=2'; s.async = true; s.onload = s.onerror = boot; document.head.appendChild(s); } else boot();
