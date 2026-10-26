@@ -191,6 +191,7 @@
       '<label class="sr" for="pz-note">Anything else about this piece?</label><textarea id="pz-note" class="pz-note" rows="2" maxlength="400" placeholder="Anything else about this piece? (optional)"></textarea>' +
       '<div class="btnrow"><button type="button" class="btn bk" id="pz-back">&larr; Back</button>' + (MODE === 'first' ? '<button type="button" class="btn skip" id="pz-skip">Skip this piece</button>' : '') + '<button type="button" class="btn" id="pz-next">' + (qs(pc).length ? 'Arduino challenge &rarr;' : 'Done with this piece &rarr;') + '</button></div>';
     var d = $('pz-demo'), dh = pc.demo(d); if (dh) d.innerHTML = dh;
+    if (window.Fit) requestAnimationFrame(function () { Fit.check(el.querySelector('h2'), el.querySelector('.pz-ch')); });   // fit: piece heading + its first row on the first screen
     var ul = $('pz-params');
     ps(pc).forEach(function (p) {
       var li = document.createElement('li'); li.className = 'pz-p';
