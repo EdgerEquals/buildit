@@ -141,7 +141,7 @@
     pan.appendChild(el('h2', null, 'Nothing here is right or wrong.'));
     pan.appendChild(el('p', 'qo-say', 'It’s all you learning. As we go I’ll tell you the real terms and names for things, because what you can build depends on how clearly you can say what you mean.'));
     pan.appendChild(el('p', 'qo-say', 'So whatever you pick, I’ll just say “here’s the term for that”. If it feels too easy or too hard, tell me and I’ll change it.'));
-    pan.appendChild(el('p', 'qo-sig', '— ' + (bot || 'your bot')));
+    pan.appendChild(el('p', 'qo-sig', '— ' + (bot || (window.BI && BI.bot && BI.bot()) || 'your bot')));   // his name for the bot
     var row = el('div', 'qo-row'), b = el('button', 'go', then ? 'Let’s go →' : 'Got it'); b.type = 'button'; row.appendChild(b); pan.appendChild(row);
     b.onclick = function () { if (window.Learner) Learner.markIntro(); if (then) then(); else home(); };
   }

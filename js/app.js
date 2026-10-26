@@ -72,7 +72,19 @@
   const nameLike = (t) => { const n = NORM(t), flat = n.replace(/[^a-z]/g, ''), toks = n.split(/[^a-z]+/);
     return NAMEWORDS().some((w) => w.length > 3 ? flat.includes(w) : w.length === 3 ? toks.some((x) => x.startsWith(w)) : toks.includes(w)); };
   const HOST = () => (cfg && cfg.host) || 'Danny';
-  const BOT = () => (cfg && cfg.bot) || 'your bot';   // ONE setting: `bot` in the encrypted config (renamable by the user)
+  // THE BOT'S NAME ON HIS SIDE (Kids Club 'Kids rename their bot on their side', Danny 17:56 AWST 26 Oct): his own input, applied
+  // straight away. Kept on this device ('buildit.botname': name + when) and in his encrypted log (the rename-bot message), so it
+  // follows him to another device; the newest of the two wins. The config's `bot` is only the fallback. Danny's side never changes.
+  const K_BOT = 'buildit.botname';
+  const botRec = () => { try { const r = JSON.parse(localStorage.getItem(K_BOT) || 'null'); return r && typeof r.t === 'string' && r.t ? r : null; } catch (e) { return null; } };
+  const BOT = () => { const r = botRec(); return (r && r.t) || (cfg && cfg.bot) || 'your bot'; };
+  function applyBot(n, ts) {
+    n = String(n || '').replace(/[\u0000-\u001f\u007f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 40); if (!n) return;
+    const r = botRec(); if (r && r.t === n) return; if (r && +r.ts > +ts) return;   // newest wins
+    try { localStorage.setItem(K_BOT, JSON.stringify({ t: n, ts: +ts || Date.now() })); } catch (e) {}
+    if (cfg) cfg.bot = n; const bn = $('bot-name'); if (bn) bn.textContent = n; setBotName();
+    document.dispatchEvent(new CustomEvent('bi:botname'));
+  }
   async function openApp() {
     $('gate').hidden = true; $('screen-app').hidden = false;
     const title = cfg.title || 'My chat page';
@@ -88,7 +100,7 @@
     // chat poll + live line, orbit emojis, the ratio pump; tier 3: DJ engine + zoom mark prefetch. DJ itself loads on tap.
     // the learner model and the quiz orb load with the questions (tier 1), in order: model, orb, then the questions
     // rhythms keep going while away (js/rhythm.js): first, so everything after it can register; nothing before the password
-    if (!window.Pieces) { ['js/fit.js?v=2', 'js/rhythm.js?v=1', 'js/callme.js?v=2', 'js/learner.js?v=3', 'js/quiz-orb.js?v=7', 'js/onboard.js?v=4', 'js/pathways.js?v=6', 'js/pieces.js?v=10'].forEach((u) => { const sp = document.createElement('script'); sp.src = u; sp.async = false; document.head.appendChild(sp); }); }
+    if (!window.Pieces) { ['js/fit.js?v=2', 'js/rhythm.js?v=1', 'js/callme.js?v=2', 'js/learner.js?v=3', 'js/quiz-orb.js?v=8', 'js/onboard.js?v=4', 'js/pathways.js?v=6', 'js/pieces.js?v=10'].forEach((u) => { const sp = document.createElement('script'); sp.src = u; sp.async = false; document.head.appendChild(sp); }); }
     else document.dispatchEvent(new CustomEvent('bi:open'));
     Tiers.add(2, startChat, 'chat', false);
     // golden-ratio dials (Kids Club core standard): tier 1, after unlock; nothing before the password
@@ -164,8 +176,10 @@
     ev.preventDefault(); const n = $('ren-in').value.replace(/[\u0000-\u001f\u007f]/g, '').replace(/\s+/g, ' ').trim().slice(0, 40);
     if (!n || !key) { $('ren-msg').textContent = 'Type a name first.'; return; }
     if (n === BOT()) { $('ren-form').hidden = true; return; }
+    if (window.NameKind && NameKind.like(n) && !ev.__kept) {   // name check: kind, never a no (his page stays private either way)
+      NameKind.line($('ren-in'), { what: 'name', onSurprise: (v) => { $('ren-in').value = v; }, onKeep: () => { const e2 = new Event('submit', { cancelable: true }); e2.__kept = true; $('ren-form').dispatchEvent(e2); } }); return; }
     const m = { id: newId(), ts: Date.now(), from: 'user', text: '[Rename bot] ' + n, kind: 'rename-bot', name: n };
-    cfg.bot = n; addMsg(m, 'pending'); $('ren-msg').textContent = 'Saved. Your bot is now called ' + n + '.';
+    applyBot(n, m.ts); addMsg(m, 'pending'); $('ren-msg').textContent = 'Saved. Your bot is now called ' + n + '.';
     setTimeout(() => { $('ren-form').hidden = true; $('ren-btn').setAttribute('aria-expanded', 'false'); }, 1400);
     render(); await deliver(msgs.get(m.id));
   });
@@ -546,7 +560,7 @@
   function render() {
     const log = $('log'); if (!log || !key) return;
     const list = [...msgs.values()].sort((a, b) => a.ts - b.ts); log.innerHTML = '';
-    const rn = list.filter((m) => m.kind === 'rename-bot' && m.state !== 'failed').pop(); if (rn && cfg) cfg.bot = rn.name;
+    const rn = list.filter((m) => m.kind === 'rename-bot' && m.state !== 'failed').pop(); if (rn && cfg) applyBot(rn.name, rn.ts);
     $('bot-name').textContent = BOT(); setBotName(); ledState();
     if (!list.length) { const e = document.createElement('div'); e.className = 'empty'; e.innerHTML = '<p class="big">Hi! 👋</p><p></p>'; e.lastChild.textContent = 'Type below and press Send. ' + BOT() + ' will reply here.'; log.appendChild(e); }
     let day = '';
