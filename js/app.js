@@ -89,6 +89,8 @@
     if (Tiers.script && !window.Logo) Tiers.script('js/logo.js?v=5', 2, null, 'logo', false);
     // stuck alert to Dad (Kids Club): tier 2 after unlock, reads the dials' rhythm; nothing changes on screen
     if (Tiers.script && !window.Stuck) Tiers.script('js/stuck.js?v=1', 2, null, 'stuck', false);
+    // 'Is this the change you want?' for his live picks (the quiz orb's spotlight), tier 2, once per round
+    if (Tiers.script && !window.PicksCheck) Tiers.script('js/picks-check.js?v=1', 2, null, 'pickscheck', false);
     if (Tiers.script) { Tiers.script('js/orbit.js?v=2', 2, null, 'orbit'); Tiers.script('js/ratio-pump.js?v=1', 2, { 'data-site': 'buildit', 'data-freq': (0.75 * Math.pow(1.6180339887, .618)).toFixed(3) }, 'pump', false); }
     Tiers.add(3, () => { const l = document.createElement('link'); l.rel = 'prefetch'; l.href = 'js/autodj.js?v=2'; document.head.appendChild(l); }, 'prefetch autodj');
     Tiers.prefetch('img/mark-head.svg?v=1');   // tier 3: an extra-questions preview
