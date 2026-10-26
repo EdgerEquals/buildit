@@ -32,7 +32,10 @@
   if (window.PhiPumps) return;
   var PHI = 1.6180339887, G = 1 / PHI;
   var RM = window.matchMedia ? matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
-  function now() { return ((window.performance && performance.now) ? performance.now() : Date.now()) / 1000; }
+  var OFF = 0;   // continuity offset (s): js/rhythm.js fast-forwards the whole tree to wall-clock now after a reload or time away
+  function now() { return ((window.performance && performance.now) ? performance.now() : Date.now()) / 1000 + OFF; }
+  if (window.RhythmContinuity) RhythmContinuity.register('pumps', { save: function () { return { t: now() }; },
+    catchUp: function (e, s, m) { if (m !== 'restart' && s && isFinite(s.t)) OFF += s.t + e - now(); }, reset: function () { OFF -= now(); } });
   function sky() { try { return window.Dials && Dials.sky ? Dials.sky() : null; } catch (e) { return null; } }
   function pumpOf(P, id) { if (!P) return null; for (var i = 0; i < P.length; i++) if (P[i].id === id) return P[i]; return null; }
   // ---- anchor B (seconds, measured) ----

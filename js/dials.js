@@ -276,6 +276,7 @@
 
   function retarget() { hookOrb(); T.pace = paceTarget(); T.season = val(R.r.season) * seasonNow(); glide(); }
   retarget(); setInterval(function () { if (!document.hidden) retarget(); }, sec(5) * 1000);
+  document.addEventListener('rhythm:sky', retarget);   // back from away (js/rhythm.js): the sky and season clocks re-read at once
 
   var api = window.Dials = {
     v: 1, range: function () { return JSON.parse(JSON.stringify(RANGE)); },

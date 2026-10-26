@@ -258,6 +258,8 @@ body.paused *{animation-play-state:paused!important}
 .dj-grp legend{float:left;margin-right:6px;font-weight:700;color:var(--ac2)}
 .dj-grp label{display:inline-flex;align-items:center;gap:3px;border:1px solid var(--ln);border-radius:999px;padding:2px 8px;cursor:pointer}
 .dj-grp input{margin:0;accent-color:var(--ac)}
+.dj-grp label{transition:border-color var(--ph-1) ease,background-color var(--ph-1) ease}.dj-grp label.is-live{border-color:var(--ac);background:var(--sf2)}.dj-grp label.is-live span::after{content:" \2022"}
+.djbox .dj-play.is-resuming{border-style:dashed}
 .litebtn{border:1px solid var(--ln);background:transparent;border-radius:999px;padding:2px 9px;font-size:.78rem;color:var(--mu)}
 .litebtn[aria-pressed=true]{color:var(--tx);border-color:var(--ac)}
 

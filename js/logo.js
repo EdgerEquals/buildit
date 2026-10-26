@@ -357,5 +357,5 @@
       el: el }, refresh: function () { render(); },
     reset: function () { try { localStorage.removeItem(KEY); } catch (e) {} R = load(); render(); if (window.BuildMore) BuildMore.refresh(); } };
   function boot() { init(); setTimeout(function () { render(); }, T(-1) * 1000); }   // once Pieces / Dials have settled
-  if (!window.PhiPumps) { var s = document.createElement('script'); s.src = 'js/phi-pumps.js?v=2'; s.async = true; s.onload = s.onerror = boot; document.head.appendChild(s); } else boot();
+  if (!window.PhiPumps) { var s = document.createElement('script'); s.src = 'js/phi-pumps.js?v=3'; s.async = true; s.onload = s.onerror = boot; document.head.appendChild(s); } else boot();
 })();
