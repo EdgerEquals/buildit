@@ -148,8 +148,11 @@
   //   weight_i = PHI ^ -(phi-steps between the pump's period and the output's own timescale); that count is the exponent
   //   swing_i  = the clock's own physical ratio (REFERENCE DATA below). The 2pi and the halving are the shape of a cycle
   //   swinging either side of the base, not tuning values. PHI is the only scaling factor.
-  // Base (measured): the page's own palette as drawn on this screen. Output timescale (measured): the kid's own return
-  // rhythm (gap between sessions, in this record); until two sessions exist it is the mean solar day (sky anchor).
+  // Base (measured): the page's own palette as drawn on this screen. Output timescale: palette warmth's own timescale is the
+  // season, i.e. the year clock's own period (the local day-length cycle, cited tropical year). So the year pump has weight 1
+  // and every other clock falls by PHI per phi-step away from the year: the moon and tides still nudge, faintly, and the
+  // year visibly shows across seasons. (Danny's choice, 26 Oct 2026 13:26 AWST: "change the [weighting] on three". Before,
+  // the timescale was the kid's return gap, else one day, which let the sun's day/night swamp the year.)
   // The palette leans by: dial rung x (log_PHI of the product) / (log_PHI of the largest product possible today),
   // i.e. a ratio of today's pumped swing to its own peak; then the WCAG safe-side floors (below) pull it back if needed.
 
@@ -232,15 +235,13 @@
     out.D = D; out.el = e; out.len = L / 24;   // for the logo (js/logo.js, js/phi-pumps.js): mean elongation (deg), sun height (deg), day length as a share of the day
     return out;
   }
-  function returnDays() { return R.ret ? R.ret / DAYMS : 1; }   // the kid's own return rhythm, else the mean solar day
+  function seasonDays() { return SKY.pYear; }   // palette warmth's own timescale: the season (year clock), Danny 13:26 AWST
   function seasonNow() {   // -1 .. +1: today's pumped swing as a ratio of its own peak
-    var t = nowT(), P = pumps(t), Tout = returnDays(), Lsum = 0, Lmax = 0;
+    var t = nowT(), P = pumps(t), Tout = seasonDays(), Lsum = 0, Lmax = 0;
     P.forEach(function (q) { q.w = Math.pow(PHI, -Math.abs(stepsPhi(q.p / Tout))); q.x = q.w * q.c / 2; Lsum += q.x * stepsPhi(q.sw); Lmax += q.w / 2 * stepsPhi(q.sw); });
     seasonNow.last = { pumps: P.map(function (q) { return { id: q.id, period_d: +q.p.toFixed(4), swing: +q.sw.toFixed(4), steps: +Math.abs(stepsPhi(q.p / Tout)).toFixed(2), weight: +q.w.toFixed(4), c: +q.c.toFixed(3) }; }), outDays: +Tout.toFixed(3), product: +Math.pow(PHI, Lsum).toFixed(4), lean: Lmax ? +(Lsum / Lmax).toFixed(4) : 0, at: new Date(t).toISOString() };
     return Lmax ? Lsum / Lmax : 0;
   }
-  // the kid's own return rhythm (numbers only, in this record): gap between session starts, smoothed by Dial 1's share
-  (function () { var now = Date.now(), g = R.t0 ? now - R.t0 : 0; if (g > sec(9) * 1000) R.ret = R.ret ? R.ret + f1 * (g - R.ret) : g; R.t0 = now; save(); })();
   // warmth: the surfaces lean toward the page's own warm colour (--bad) when the pumps run high and its own cool accent (--ac)
   // when they run low, then the WCAG floors pull the lean back by PHI steps until every text and border pair passes.
   var BASE = null, SURF = ['--bg', '--sf', '--sf2', '--me'];

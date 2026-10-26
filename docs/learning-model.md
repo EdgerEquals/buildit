@@ -41,7 +41,8 @@ appears, a short message in the bot's voice.
   terms: { <term>: { n, s, last, k } } }   // exposures, recall strength 0..1, last seen ms, interval rung
 ```
 
-Numbers and fixed term ids only. Typed answers ("in your own words") are never stored here.
+Numbers and fixed term ids only. Typed answers ("in your own words") are never stored here. One exception (Danny, 2026-10-26 13:26 AWST): the words he types
+into his own logo are kept in his logo record on his device (docs/logo.md), for his logo only.
 
 - **Recall decay, phi-spaced:** `r = s * PHI^(-days / PHI^k)`. Naming a term moves `s` a 1/PHI step towards 1 and adds a rung (the next interval is PHI times longer); meeting it moves `s` towards PHI^-2 and divides the rung by PHI.
 - **Level:** continuous 0..3. Targets move by +PHI^-3 for a term named, -PHI^-2 for a term met, and +/-PHI^-1 for a "too easy"/"too hard" tap. The level follows through a spring (natural period PHI^2 answers, damping ratio 1/PHI), so it glides and settles. The balance point of the +PHI^-3 / -PHI^-2 pair is 61.8% named.
@@ -152,7 +153,8 @@ The floors, ceilings and start rungs sit in one marked block at the top of `js/d
 
 **One record.** The dial state and the pace reading live in the existing usage record (`buildit.adapt`, under `dl`, through
 `Adapt.slot`). There is no second store. It holds numbers: gaps in seconds, Back / Skip / roll / orb-drop rates per answer,
-a session count, rungs and the move log. Typed text, chat, passwords, names and places are not stored.
+a session count, rungs and the move log. Typed text, chat, passwords, names and places are not stored (the one exception is his own logo words, kept in the
+logo record only; docs/logo.md).
 The same record gives the level reading, `Dials.level()`:
 
 | Reading | From | Meaning |
@@ -170,7 +172,7 @@ The off-device gate is hard off (`GATE = false`). Opening it needs the page owne
 It opens a rung when the pace pushes its edge with no extra Back or Skip. It closes a rung when Back and Skip rise past
 PHI x the usual rate.
 
-**Dial 3, season pumps** (Kids Club "Season pumps standard", 2026-10-25 21:47 AWST; preview). Palette warmth only.
+**Dial 3, season pumps** (Kids Club "Season pumps standard", 2026-10-25 21:47 AWST; live after Danny's yes, 2026-10-26 13:26 AWST). Palette warmth only.
 Six sky clocks are worked out on the device from the date, the time and one coarse point. There is no feed and no request.
 They are timing anchors only; no physical coupling is claimed. Schumann resonance, evection and the slow lunar apsidal and
 nodal cycles are left out.
@@ -187,9 +189,13 @@ clock's place in its own cycle, and weight = PHI ^ -(phi-steps between the pump'
 | anom | anomalistic month | cos(Moon's mean anomaly), perigee at +1 | Moon apogee / perigee |
 | year | tropical year | local day length between this latitude's shortest and longest day, -1 to +1 | longest / shortest day |
 
-The base is the page's own palette as drawn on the screen. The output's timescale is the kid's own return rhythm (the gap
-between sessions, smoothed by Dial 1's share and kept in this record); until there are two sessions it is the mean solar
-day. Surfaces lean toward the page's warm colour (`--bad`) when the product is above 1 and its cool accent (`--ac`) when it
+The base is the page's own palette as drawn on the screen. The output's timescale is palette warmth's own timescale, the
+season: the year clock's period (local day-length cycle, cited tropical year). So the year pump has weight 1 and each other
+clock falls by PHI per phi-step away from the year (moon and tides nudge faintly; the sun's day/night barely moves it). This
+is Danny's choice, 26 Oct 2026 13:26 AWST ("change the [weighting] on three"), so the year visibly shows; before, the
+timescale was the kid's return gap (else one day) and the sun swamped the year. Checked at the coarse point: midsummer noon
+leans warm (+0.92 of its peak), midwinter noon leans cool (-0.95), the equinox sits near the page's own palette, with no WCAG
+pull-back needed. Surfaces lean toward the page's warm colour (`--bad`) when the product is above 1 and its cool accent (`--ac`) when it
 is below, by the dial rung x log_PHI(product) / log_PHI(largest product possible today). Then the WCAG floors (text 4.5:1,
 borders 3:1) pull the lean back toward the page's own palette by PHI steps until every pair passes.
 Lite switched on closes a rung; a session without Lite opens one back toward the start.

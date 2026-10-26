@@ -1,9 +1,9 @@
-# Logo grows with the page (PREVIEW, not live)
+# Logo grows with the page (live after Danny's yes, 26 Oct 2026 13:26 AWST)
 
 Kids Club standards: "Logo sound and motion standard (global)" and "Logo grows with the page" (extended to this page by the page
 owner, 26 Oct 2026). Source of truth: the Kids Club shared layer on the box; this file only says how this page does it.
-Branch `preview-logo-2026-10-26`, built on the unmerged sky-clocks preview (`preview-seasonpumps-2026-10-25`): quiet hours and the
-moon clock come from its on-device sky clocks. Rollback for the live page: tag `pre-logo-2026-10-26`.
+Built on the sky clocks (season pumps, live together with the logo): quiet hours and the moon clock come from those on-device
+clocks. Rollback for the live page: tags `pre-logo-2026-10-26` and `pre-seasonpumps-2026-10-25` (both the page before these).
 
 ## Files (this page's own copies; nothing loads another page's files)
 | File | What | When it loads |
@@ -25,11 +25,10 @@ moon clock come from its on-device sky clocks. Rollback for the live page: tag `
 - A newly done step glides in: B x PHI^-1, each layer B x PHI^-4 after the one before (free-wheel cascade).
 
 ## Hand-over (the logo step)
-- The logo step is the first Build more item, "Make your logo yours" (also "Make it yours now" in the logo view, after step 1).
-- Opening it stops auto-assembly for good. What is built is kept as his start (and "Back to my original" returns to it).
-- The one-time light hint is the help orb's own grow-on-drop on the logo: "This logo is yours now... Tap it any time to change it."
-- After that, tapping the logo opens the logo view: tiles and buttons only (pieces on/off, bigger/smaller, colours, orbit marks,
-  step back, back to my original, sound on/off). No settings box and no typed field.
+- The logo step is the first Build more item, "Make your logo yours" (also "Make it yours" in the logo view, after step 1). It asks
+  "now or later" (see Logo editor flow below).
+- Either answer stops auto-assembly for good. What is built is kept as his start (and "Back to my original" returns to it).
+- After that, tapping the logo opens the logo view; its small "edit" button opens the editor (Logo editor flow below).
 
 ## One start, independent per site (Kids Club, 26 Oct 2026)
 **The shared start recipe** (`startFrom()` in `js/logo.js`, recipe 1). Any of his sites computes his start the same way:
@@ -104,7 +103,8 @@ kid's name on a public page itself; the kid's own logo choices are his.
 
 ## On this device only
 `localStorage 'buildit.logo:<site path>'`: handed-over time, hint shown, sound off, layers seen, his logo and his original (layer
-ids, picked colours, size rungs, an offered mark set), and his last 8 edits for Step back. No typed text, no names, nothing sent. `Logo.reset()` clears this site's record only.
+ids, picked colours, size rungs, an offered mark set), and his last 8 edits for Step back. Nothing is sent. Words he types into his logo are kept here, in his logo record only:
+the one typed-text exception, Danny's yes, 26 Oct 2026 13:26 AWST. No other typed text is kept. `Logo.reset()` clears this site's record only.
 
 ## Self-check alert (rule 12)
 `python3 tools/phi_selfcheck.py js/logo.js js/phi-pumps.js js/logo-zoom-life.js js/logo-sound.js`: the logo, pump and zoom files report
