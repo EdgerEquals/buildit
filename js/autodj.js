@@ -7,6 +7,7 @@
    Nothing plays before a tap. Loaded on tap only (not part of first paint). Storage: localStorage 'buildit.dj.vol'. */
 (function () {
   'use strict';
+  var PK = { bpm: .618, fade: 1, track: -.618 };   // his picks, in phi rungs (js/pathways.js: a bit = .618, much = 1)
   var PHI = 1.6180339887;
   var OWN = (function () { try { var v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--own-step')); return isFinite(v) ? v : 0.25; } catch (e) { return 0.25; } })();
   var LAD = 5 + OWN;
@@ -48,8 +49,9 @@
     var s = p.tp + p.wp + p.up + p.mp;
     var vol = clamp(0.55 * Math.pow(PHI, -s / 4), 0.25, 0.8);
     if (p.mood === 'serious' || p.urgency === 'urgent') vol = 0.3;
-    return { p: p, s: s, fade: clamp(Math.pow(PHI, LAD + s), Math.pow(PHI, LAD - 2), Math.pow(PHI, LAD + 3)), bpm: clamp(60 / Math.pow(PHI, -1 + s / 2), 62, 157),
-             vol: vol, trackLen: Math.pow(PHI, LAD + 4 + s), genres: GENRES[p.mood] || GENRES.neutral };
+    // HIS PICKS (live, Danny 14:13 AWST), phi-rung shifts inside the same clamps: PK.bpm a bit faster, PK.fade much longer, PK.track a bit shorter
+    return { p: p, s: s, fade: clamp(Math.pow(PHI, LAD + s + PK.fade), Math.pow(PHI, LAD - 2), Math.pow(PHI, LAD + 3)), bpm: clamp(60 / Math.pow(PHI, -1 + s / 2 - PK.bpm), 62, 157),
+             vol: vol, trackLen: Math.pow(PHI, LAD + 4 + s + PK.track), genres: GENRES[p.mood] || GENRES.neutral };
   }
 
   // ---------- music theory + genre table ----------

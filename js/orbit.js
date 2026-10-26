@@ -8,9 +8,11 @@
   var PHI = 1.6180339887, G = 0.6180339887;
   var OWN = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--own-step')); if (!isFinite(OWN)) OWN = 0.25;
   //          emoji        travel n  dir(+1 cw)  tilt deg (360/PHI^6, 360/PHI^5)
-  var SET = [['\uD83D\uDE80', 7,   1,  -20.06],    // rocket
-             ['\u2B50',       7.5, -1,  20.06],    // star
-             ['\uD83C\uDF0D', 8,   1,  -32.46]];   // globe
+  // HIS PICKS (live, Danny 14:13 AWST): robots, gears and battery; laps much faster (travel n - 1 rung); all the same way round;
+  // ovals bigger (one rung: rx 100vw/PHI^2, ry 100vh/PHI^3). Fade slower and fainter are in css/style.css. Spin is as it was.
+  var SET = [['\uD83E\uDD16', 6,   1,  -20.06],    // robot
+             ['\u2699\uFE0F', 6.5, 1,  20.06],    // gear
+             ['\uD83D\uDD0B', 7,   1,  -32.46]];   // battery
   var app = document.getElementById('screen-app'), vq = document.getElementById('view-q');
   if (!app) return;
   var L = document.createElement('div'); L.className = 'orb-layer'; L.setAttribute('aria-hidden', 'true');
@@ -21,14 +23,14 @@
       o.innerHTML = '<span class="orb-x"><span class="orb-y"><span class="orb-u"><span class="orb-e"></span></span></span></span>';
       o.querySelector('.orb-e').textContent = d[0];
       var st = o.style; st.setProperty('--tilt', d[3] + 'deg'); st.setProperty('--T', T.toFixed(3) + 's');
-      st.setProperty('--rx', sc ? (sc[0] * sz).toFixed(1) + 'px' : 'calc(' + (100 / Math.pow(PHI, 3) * sz).toFixed(2) + 'vw)');
-      st.setProperty('--ry', sc ? (sc[1] * sz).toFixed(1) + 'px' : 'calc(' + (100 / Math.pow(PHI, 4) * sz).toFixed(2) + 'vh)');
+      st.setProperty('--rx', sc ? (sc[0] * sz).toFixed(1) + 'px' : 'calc(' + (100 / Math.pow(PHI, 2) * sz).toFixed(2) + 'vw)');
+      st.setProperty('--ry', sc ? (sc[1] * sz).toFixed(1) + 'px' : 'calc(' + (100 / Math.pow(PHI, 3) * sz).toFixed(2) + 'vh)');
       // y runs a quarter cycle behind x (clockwise) or ahead of it (anticlockwise): that phase difference makes the ellipse
       st.setProperty('--dx', (-T * ph).toFixed(3) + 's'); st.setProperty('--dy', (-T * ((ph + (d[2] > 0 ? 0.25 : 0.75)) % 1)).toFixed(3) + 's');
       st.setProperty('--sd', 'calc(var(--ph6) * -' + ((k * G * G * G) % 1).toFixed(3) + ')'); st.setProperty('--sdir', j % 2 ? 'reverse' : 'normal');
-      st.setProperty('--pd', 'calc(var(--ph5) * -' + ((k * G * G) % 1).toFixed(3) + ')');
+      st.setProperty('--pd', 'calc(var(--ph6) * -' + ((k * G * G) % 1).toFixed(3) + ')');
       host.appendChild(o);
-      return { e: d[0], travelN: d[1] + OWN, travelS: T, dir: d[2] > 0 ? 'clockwise' : 'anticlockwise', tilt: d[3], spinN: 6 + OWN, spinDir: j % 2 ? 'anticlockwise' : 'clockwise', pulseN: 5 + OWN, size: sz };
+      return { e: d[0], travelN: d[1] + OWN, travelS: T, dir: d[2] > 0 ? 'clockwise' : 'anticlockwise', tilt: d[3], spinN: 6 + OWN, spinDir: j % 2 ? 'anticlockwise' : 'clockwise', pulseN: 6 + OWN, size: sz };
     });
   }
   var info = build(L);

@@ -1,25 +1,28 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="-8 -16 116 116" width="64" height="64">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-13 -23 126 126" width="64" height="64">
 <!-- Bot avatar: glossy navy ball, two white pill eyes. Self-contained (CSS in <style>, no script, no external refs).
      Timing = phi rules: every period PHI^(n + own step) s; the own step must match css/style.css (default .25).
      Golden-angle negative delays (k = 1..5: -period x frac(k x 0.618)). Moves are phi ratios: breathe 1+PHI^-7,
      wobble +/-PHI^1.5 deg, blink to PHI^-4 height, hop PHI^-4 of the box. transform/opacity only; still under reduced motion.
-     viewBox has headroom above the ball so the hop is not clipped. -->
+     viewBox has headroom above the ball so the hop is not clipped (widened for the higher hop, still square and centred).
+     HIS PICKS (live, Danny 14:13 AWST; rollback pre-picks-2026-10-26), each a phi-rung shift: colour much deeper (lightness / PHI);
+     breaths a touch quicker (x PHI^-.382) and much bigger (PHI^-7 -> PHI^-6); blinks much more often (PHI^2 -> PHI^1); wobble slower
+     (PHI^4 -> PHI^5) and bigger (PHI^1.5 -> PHI^2.5 deg); shine slower (PHI^5 -> PHI^6); hop higher (PHI^-4 -> PHI^-3). Own step -.75 (P7). -->
 <style>
-svg{--own-step:.25;--p2:2.953s;--p3:4.778s;--p4:7.730s;--p5:12.508s;--p6:20.238s}
-@supports (width:calc(pow(2,1)*1px)){svg{--k:pow(1.6180339887,var(--own-step));--p2:calc(2.618034s*var(--k));--p3:calc(4.236068s*var(--k));--p4:calc(6.854102s*var(--k));--p5:calc(11.09017s*var(--k));--p6:calc(17.944272s*var(--k))}}
+svg{--own-step:-.75;--p1:1.128s;--p2:1.825s;--p3:2.953s;--p4:4.778s;--p5:7.73s;--p6:12.51s;--xb:1}
+@supports (width:calc(pow(2,1)*1px)){svg{--k:pow(1.6180339887,var(--own-step));--xb:pow(1.6180339887,-.382);--p1:calc(1.618034s*var(--k));--p2:calc(2.618034s*var(--k));--p3:calc(4.236068s*var(--k));--p4:calc(6.854102s*var(--k));--p5:calc(11.09017s*var(--k));--p6:calc(17.944272s*var(--k))}}
 .bre,.wob,.hop,.eye{transform-box:fill-box}
-.bre{transform-origin:50% 100%;animation:bre var(--p3) ease-in-out calc(var(--p3)*-.618) infinite}
-.wob{transform-origin:50% 90%;animation:wob var(--p4) ease-in-out calc(var(--p4)*-.236) infinite}
-.shn{opacity:0;animation:shn var(--p5) ease-in-out calc(var(--p5)*-.854) infinite}
-.eye{transform-origin:50% 50%;animation:blk var(--p2) ease-in-out calc(var(--p2)*-.472) infinite}
+.bre{transform-origin:50% 100%;animation:bre calc(var(--p3)*var(--xb)) ease-in-out calc(var(--p3)*-.618) infinite}
+.wob{transform-origin:50% 90%;animation:wob var(--p5) ease-in-out calc(var(--p5)*-.236) infinite}
+.shn{opacity:0;animation:shn var(--p6) ease-in-out calc(var(--p6)*-.854) infinite}
+.eye{transform-origin:50% 50%;animation:blk var(--p1) ease-in-out calc(var(--p1)*-.472) infinite}
 .hop{transform-origin:50% 100%;animation:hop var(--p6) ease-out calc(var(--p6)*-.090) infinite}
-@keyframes bre{50%{transform:scale(1.0344,1.0271)}}
-@keyframes wob{25%{transform:rotate(2.058deg)}75%{transform:rotate(-2.058deg)}}
+@keyframes bre{50%{transform:scale(1.0557,1.0438)}}
+@keyframes wob{25%{transform:rotate(3.330deg)}75%{transform:rotate(-3.330deg)}}
 @keyframes shn{0%{transform:translateX(0);opacity:0}2.13%{opacity:1}14.59%{transform:translateX(150px);opacity:1}17.03%,100%{transform:translateX(150px);opacity:0}}
 @keyframes blk{0%,94.43%,100%{transform:scaleY(1)}97.21%{transform:scaleY(.1459)}}
-@keyframes hop{0%,96.56%,100%{transform:none}97.21%{transform:scale(1.0557,.9443)}98.28%{transform:translateY(-14.59%) scale(.9443,1.0557);animation-timing-function:ease-in}99.31%{transform:scale(1.0557,.9443)}}
+@keyframes hop{0%,96.56%,100%{transform:none}97.21%{transform:scale(1.0557,.9443)}98.28%{transform:translateY(-23.61%) scale(.9443,1.0557);animation-timing-function:ease-in}99.31%{transform:scale(1.0557,.9443)}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important}}
 </style>
-<defs><radialGradient id="b" cx=".62" cy=".3" r=".8"><stop offset="0" stop-color="#19387A"/><stop offset=".45" stop-color="#0B1F4D"/><stop offset="1" stop-color="#040C22"/></radialGradient><linearGradient id="r" x2="0" y2="1"><stop offset="0" stop-color="#8FA8E0" stop-opacity=".45"/><stop offset=".16" stop-color="#8FA8E0" stop-opacity="0"/></linearGradient><linearGradient id="s"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".2"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient><clipPath id="c"><circle cx="50" cy="50" r="48"/></clipPath></defs>
+<defs><radialGradient id="b" cx=".62" cy=".3" r=".8"><stop offset="0" stop-color="#0F234B"/><stop offset=".45" stop-color="#071330"/><stop offset="1" stop-color="#020715"/></radialGradient><linearGradient id="r" x2="0" y2="1"><stop offset="0" stop-color="#8FA8E0" stop-opacity=".45"/><stop offset=".16" stop-color="#8FA8E0" stop-opacity="0"/></linearGradient><linearGradient id="s"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".2"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient><clipPath id="c"><circle cx="50" cy="50" r="48"/></clipPath></defs>
 <g class="hop"><g class="wob"><g class="bre"><circle cx="50" cy="50" r="48" fill="url(#b)"/><circle cx="50" cy="50" r="47" fill="none" stroke="url(#r)" stroke-width="2"/><g clip-path="url(#c)"><g transform="rotate(25 50 50)"><rect class="shn" x="-30" y="-20" width="22" height="140" fill="url(#s)"/></g></g><g fill="#fff"><g transform="rotate(-30 54.7 31.3)"><rect class="eye" x="49.45" y="20.3" width="10.5" height="22" rx="5.25"/></g><g transform="rotate(-30 76.7 21.3)"><rect class="eye" x="71.45" y="10.3" width="10.5" height="22" rx="5.25"/></g></g></g></g></g>
 </svg>

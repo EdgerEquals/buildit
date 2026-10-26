@@ -89,8 +89,8 @@
     if (Tiers.script && !window.Logo) Tiers.script('js/logo.js?v=5', 2, null, 'logo', false);
     // stuck alert to Dad (Kids Club): tier 2 after unlock, reads the dials' rhythm; nothing changes on screen
     if (Tiers.script && !window.Stuck) Tiers.script('js/stuck.js?v=1', 2, null, 'stuck', false);
-    if (Tiers.script) { Tiers.script('js/orbit.js?v=1', 2, null, 'orbit'); Tiers.script('js/ratio-pump.js?v=1', 2, { 'data-site': 'buildit', 'data-freq': '0.75' }, 'pump', false); }
-    Tiers.add(3, () => { const l = document.createElement('link'); l.rel = 'prefetch'; l.href = 'js/autodj.js?v=1'; document.head.appendChild(l); }, 'prefetch autodj');
+    if (Tiers.script) { Tiers.script('js/orbit.js?v=2', 2, null, 'orbit'); Tiers.script('js/ratio-pump.js?v=1', 2, { 'data-site': 'buildit', 'data-freq': (0.75 * Math.pow(1.6180339887, .618)).toFixed(3) }, 'pump', false); }
+    Tiers.add(3, () => { const l = document.createElement('link'); l.rel = 'prefetch'; l.href = 'js/autodj.js?v=2'; document.head.appendChild(l); }, 'prefetch autodj');
     Tiers.prefetch('img/mark-head.svg?v=1');   // tier 3: an extra-questions preview
   }
   function setBotName() { document.querySelectorAll('.botav').forEach((im) => { if (im.id === 'h-av') { im.alt = BOT(); im.title = BOT(); } }); }
@@ -117,13 +117,13 @@
   $('dj-pill').onclick = () => {
     const pop = $('dj-pop'), open = pop.hidden; pop.hidden = !open; $('dj-pill').setAttribute('aria-expanded', String(open));
     if (open && window.Adapt) Adapt.note('dj', 'open');
-    if (open && !djLoaded) { djLoaded = true; const sc = document.createElement('script'); sc.src = 'js/autodj.js?v=1'; sc.async = true; document.head.appendChild(sc); }
+    if (open && !djLoaded) { djLoaded = true; const sc = document.createElement('script'); sc.src = 'js/autodj.js?v=2'; sc.async = true; document.head.appendChild(sc); }
   };
   new MutationObserver(() => $('dj-pill').classList.toggle('on', $('dj-play').getAttribute('aria-pressed') === 'true')).observe($('dj-play'), { attributes: true, attributeFilter: ['aria-pressed'] });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('dj-pop').hidden) { $('dj-pop').hidden = true; $('dj-pill').setAttribute('aria-expanded', 'false'); $('dj-pill').focus(); } });
   // ---- Lite: the lighter, calmer version of the page (on-device preference) ----
   function liteSync() { const on = !!(window.Adapt && Adapt.lite()); $('lite-btn').setAttribute('aria-pressed', String(on)); }
-  $('lite-btn').onclick = () => { if (!window.Adapt) return; Adapt.setLite(!Adapt.lite()); liteSync(); if (!Adapt.lite() && Tiers.script && !window.Orbit) Tiers.script('js/orbit.js?v=1', 2, null, 'orbit'); };
+  $('lite-btn').onclick = () => { if (!window.Adapt) return; Adapt.setLite(!Adapt.lite()); liteSync(); if (!Adapt.lite() && Tiers.script && !window.Orbit) Tiers.script('js/orbit.js?v=2', 2, null, 'orbit'); };
   liteSync();
   // ---- status light = message-status layer: idle / new / from Danny / urgent (a question waiting) ----
   function ledState() {

@@ -4,18 +4,29 @@
    --ok on --sf 8.5, --bad on --sf 7.5; UI borders --ln #5A7DB5 vs --sf 3.7, vs --bg 4.2 (>= 3:1). No pink.
    Motion: transform/opacity only, every period on this page's own ladder PHI^(n + --own-step), moves are phi ratios,
    golden-angle negative delays, off under reduced motion; js/ratio-pump.js scales every CSS animation by one rate. */
-:root{--bg:#0B1A33;--sf:#102447;--sf2:#1B3A6B;--ln:#5A7DB5;--tx:#FFFFFF;--mu:#9FB8E0;--ac:#9FB8E0;--ac2:#E3ECFA;--ok:#7FD1A8;--bad:#FF9B73;--me:#24467F;
+:root{--bg:#1F0B33;--sf:#1A3A73;--sf2:#1B3A6B;--ln:#7693C1;--led:#7FB2D1;--x382:1;--tx:#FFFFFF;--mu:#9FB8E0;--ac:#9FB8E0;--ac2:#E3ECFA;--ok:#7FD1A8;--bad:#FF9B73;--me:#24467F;
   --r:14px;
   /* THE ONE TIMING KNOB: this page's own phi ladder. Every period = PHI^(n + --own-step) s. Default .25 (a quarter step
      slower than the base ladder): +/-.5 would land on the other assistant's half-step ladder, so .25 keeps all three
      ladders apart. img/bot-avatar.svg carries the same value (an <img> can't read page variables). Fallbacks = step .25. */
-  --own-step:.25;--k:1.127838;
-  --ph-4:.1645s;--ph-3:.2663s;--ph-2:.4308s;--ph-1:.6970s;--ph0:1.1278s;--ph1:1.8249s;--ph2:2.953s;--ph3:4.778s;--ph4:7.730s;--ph5:12.508s;--ph6:20.238s;--ph7:32.746s;--ph8:52.984s;--ph9:85.731s;
+  --own-step:-.75;--k:0.697043;
+  --ph-4:0.1017s;--ph-3:0.1645s;--ph-2:0.2662s;--ph-1:0.4308s;--ph0:0.697s;--ph1:1.128s;--ph2:1.825s;--ph3:2.953s;--ph4:4.778s;--ph5:7.73s;--ph6:12.51s;--ph7:20.24s;--ph8:32.75s;--ph9:52.98s;
   font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;color:var(--tx);background:var(--bg)}
-@supports (width:calc(pow(2,1)*1px)){:root{--k:pow(1.6180339887,var(--own-step));
+@supports (width:calc(pow(2,1)*1px)){:root{--k:pow(1.6180339887,var(--own-step));--x382:pow(1.6180339887,.382);
   --ph-4:calc(.145898s*var(--k));--ph-3:calc(.236068s*var(--k));--ph-2:calc(.381966s*var(--k));--ph-1:calc(.618034s*var(--k));--ph0:calc(1s*var(--k));
   --ph1:calc(1.618034s*var(--k));--ph2:calc(2.618034s*var(--k));--ph3:calc(4.236068s*var(--k));--ph4:calc(6.854102s*var(--k));--ph5:calc(11.09017s*var(--k));
   --ph6:calc(17.944272s*var(--k));--ph7:calc(29.034442s*var(--k));--ph8:calc(46.978714s*var(--k));--ph9:calc(76.013156s*var(--k))}}
+/* HIS PICKS, live (Danny 2026-10-26 14:13 AWST "Make them all live"; rollback tag pre-picks-2026-10-26). Every pick is a phi-rung
+   shift of the value that was here (js/pathways.js steps: a touch PHI^.382, a bit PHI^.618, much PHI, way PHI^1.618):
+   P6 page colours: --bg a bit toward purple (hue + 360/PHI^4) #0B1A33 -> #1F0B33; --sf much lighter (lightness x PHI) #102447 -> #1A3A73;
+      --ln a touch lighter (#5A7DB5 -> #7693C1) so UI borders keep >= 3:1 on the lighter panels (WCAG floor, not a pick).
+      WCAG checked: white on --sf 11.1, --mu on --sf 5.5, --ok on --sf 6.1, --bad on --sf 5.4, --ln vs --sf 3.5, vs --bg 5.8.
+   P7 everything much quicker: --own-step .25 -> -.75 (one rung); the whole-page dial a bit faster (js/app.js data-freq x PHI^.618).
+   P3 status light: colour a bit toward blue (--led #7FD1A8 -> #7FB2D1); quiet glow way quicker (PHI^5 -> PHI^(5 - 1.618));
+      new message and question waiting one rung faster; dim-to-bright softer (lowest 38.2% -> 61.8%).
+   P4 tide line: much deeper colour (#8FB3D1 -> #3F719A); flow much faster (PHI^6 -> PHI^5).
+   P2 orbit emojis: fade one rung slower (PHI^5 -> PHI^6), fainter (brightest 38.2% -> 23.6%); the rest in js/orbit.js.
+   P1 bot: img/bot-avatar.svg. P5 DJ: js/autodj.js (PK). */
 *{box-sizing:border-box}
 html,body{margin:0;min-height:100%}
 body{background:var(--bg);-webkit-text-size-adjust:100%;line-height:1.45}
@@ -202,9 +213,9 @@ button{cursor:pointer}
 .foot .hc{justify-content:center;flex-wrap:wrap;gap:6px;padding:10px 14px calc(10px + env(safe-area-inset-bottom))}
 /* status light = message-status layer (rule 7) on this page's ladder: idle PHI^5 breathe, new PHI^3, unread from Danny PHI^2,
    urgent PHI^1 (all + own step). Brightness swings PHI^-2 -> 1. Never changes any other motion. */
-.led{width:8px;height:8px;border-radius:50%;background:var(--ok);animation:led var(--ph5) ease-in-out infinite alternate}
-.led[data-st=new]{animation-duration:var(--ph3)}.led[data-st=dad]{animation-duration:var(--ph2)}.led[data-st=urgent]{animation-duration:var(--ph1)}
-@keyframes led{from{opacity:.382}to{opacity:1}}
+.led{width:8px;height:8px;border-radius:50%;background:var(--led);animation:led calc(var(--ph3)*var(--x382)) ease-in-out infinite alternate}
+.led[data-st=new]{animation-duration:var(--ph2)}.led[data-st=dad]{animation-duration:var(--ph2)}.led[data-st=urgent]{animation-duration:var(--ph0)}
+@keyframes led{from{opacity:.618}to{opacity:1}}
 .led.off{background:var(--bad);animation:none}
 
 @media (max-width:360px){.choices{gap:8px}.tile{min-height:104px;padding:10px 6px}.tile .txt{font-size:.92rem}}
@@ -260,19 +271,19 @@ html.orb-away .orb-layer{opacity:0}
 .orb-x{position:absolute;left:0;top:0;animation:orbX calc(var(--T)/2) cubic-bezier(.3642,0,.6358,1) var(--dx) infinite alternate}
 .orb-y{display:block;animation:orbY calc(var(--T)/2) cubic-bezier(.3642,0,.6358,1) var(--dy) infinite alternate}
 .orb-u{display:block;transform:translate(-50%,-50%) rotate(calc(-1*var(--tilt)))}
-.orb-e{display:block;font-size:24px;line-height:1;opacity:.1459;animation:orbP var(--ph5) ease-in-out var(--pd) infinite,orbS var(--ph6) linear var(--sd) infinite var(--sdir)}
+.orb-e{display:block;font-size:24px;line-height:1;opacity:.1459;animation:orbP var(--ph6) ease-in-out var(--pd) infinite,orbS var(--ph6) linear var(--sd) infinite var(--sdir)}
 @keyframes orbX{from{transform:translateX(calc(-1*var(--rx)))}to{transform:translateX(var(--rx))}}
 @keyframes orbY{from{transform:translateY(calc(-1*var(--ry)))}to{transform:translateY(var(--ry))}}
 @keyframes orbS{to{transform:rotate(360deg)}}
-@keyframes orbP{0%,100%{opacity:.1459}38.2%,61.8%{opacity:.382}}
+@keyframes orbP{0%,100%{opacity:.1459}38.2%,61.8%{opacity:.236}}
 @media (min-width:576px){.orb-e{font-size:28px}}
 
 /* footer tide line: a wave that flows sideways (PHI^6 + step per wavelength) and swells (PHI^4 + step, height x 1 +/- PHI^-2) */
 .foot{position:relative}
 .tide{position:absolute;left:0;right:0;top:-7px;height:8px;overflow:hidden;pointer-events:none}
 .tide i{position:absolute;left:0;top:0;width:200%;height:100%;transform-origin:50% 100%;
-  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='8'%3E%3Cpath d='M0 6 Q20 0 40 6 T80 6' fill='none' stroke='%238FB3D1' stroke-width='1.5'/%3E%3C/svg%3E") repeat-x 0 0/80px 8px;
-  animation:tideF var(--ph6) linear infinite,tideS var(--ph4) ease-in-out calc(var(--ph4)*-.618) infinite alternate}
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='8'%3E%3Cpath d='M0 6 Q20 0 40 6 T80 6' fill='none' stroke='%233F719A' stroke-width='1.5'/%3E%3C/svg%3E") repeat-x 0 0/80px 8px;
+  animation:tideF var(--ph5) linear infinite,tideS var(--ph4) ease-in-out calc(var(--ph4)*-.618) infinite alternate}
 @keyframes tideF{to{transform:translateX(-80px)}}
 @keyframes tideS{from{opacity:.618}to{opacity:1}}
 
@@ -316,7 +327,7 @@ html.lite *{animation-play-state:paused!important}
 /* demos (same timing variables as the real pieces) */
 .dm-orbit{position:absolute;inset:0}
 .dm-orbit .orb{left:50%;top:50%}
-.dm-led{width:26px;height:26px;border-radius:50%;background:var(--ok);animation:led var(--ph5) ease-in-out infinite alternate}
+.dm-led{width:26px;height:26px;border-radius:50%;background:var(--led);animation:led calc(var(--ph3)*var(--x382)) ease-in-out infinite alternate}
 .dm-tide{position:absolute;left:0;right:0;top:50%;height:8px;overflow:hidden}.dm-tide i{position:absolute;left:0;top:0;width:200%;height:100%;background:inherit}
 .dm-sw{display:flex;gap:8px}.dm-sw i{width:34px;height:34px;border-radius:8px;border:1px solid rgba(255,255,255,.25)}
 .dm-ladder{display:flex;align-items:flex-end;gap:6px;height:84px}
