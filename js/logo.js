@@ -202,7 +202,7 @@
       '.lz-t[aria-pressed=true]{background:var(--sf2);border-color:var(--ac);box-shadow:0 0 0 2px var(--ac)}.lz-t.off{opacity:.618}.lz-t small{display:block;font-size:.618em;color:var(--mu)}' +
       '.lz-sw{width:61.8%;height:61.8%;border-radius:50%;border:1px solid var(--ln)}.lz-h{font-size:.854em;color:var(--mu);margin:.618em 0 0;text-align:center}' +
       '.lz-bar{position:sticky;top:-5.57vmin;align-self:flex-end;display:flex;gap:.618em;z-index:4}.lz-x{min-width:2.618em;height:2.618em;border-radius:2em;border:1px solid var(--ln);background:var(--sf);color:var(--tx);font-size:1em;padding:0 .618em}' +
-      '.lz-x.lz-ed{min-width:4.236em}.lz-wait{border:1px dashed var(--ln);border-radius:var(--r);padding:.618em}' +
+      '.lz-x.lz-ed{min-width:4.236em}' +
       'html.lite .lg,.rm .lg{transition:none}@media (prefers-reduced-motion:reduce){.lg,.lg *{transition:none!important}}';
     document.head.appendChild(s);
   }
@@ -248,8 +248,7 @@
     } else { draw($('lg-z'), design(), null); controls(); }
   }
   // ---------------- view mode (light) and the editor (js/logo-editor.js, loaded only when he opens it) ----------------
-  var editing = false, asking = false, EDJS = 'js/logo-editor.js?v=1';
-  function hasText(o) { return !!(o && o.art && o.art.text); }
+  var editing = false, asking = false, EDJS = 'js/logo-editor.js?v=2';
   // the X, and after the hand-over a small "edit" button next to it, sized from the X (one phi step wider to fit the word)
   function topBar() {
     var t = $('lz-bar'); if (!t) return;
@@ -257,7 +256,6 @@
       '<button type="button" class="lz-x" id="lz-x" aria-label="' + (editing ? 'Close the editor. Everything is saved' : 'Close') + '">\u2715</button>';
     var e = $('lz-edit'); if (e) e.onclick = openEditor; $('lz-x').onclick = editing ? closeEditor : closeView;
   }
-  function held() { return hasText(design()) ? '<p class="lz-p lz-wait">\u23F3 <b>Waiting for Dad.</b> Your logo has words in it, so it stays on this device only until Dad says yes.</p>' : ''; }
   function controls() {
     var box = $('lz-ctl'); if (!box) return; ov.classList.toggle('ed', editing); topBar();
     if (editing) { if (window.LogoEditor) LogoEditor.render(box); return; }
@@ -273,7 +271,7 @@
       if (window.Onboard && !Onboard.done()) h += '<p class="lz-h">You can make it yours after step 1, naming the parts of your page.</p>';
     } else {
       if (!R.hint) h += '<p class="lz-p" id="lz-hint"><b>This logo is yours now.</b> Tap it any time to see it big, and \u270F\uFE0F edit to change it.</p>';
-      h += held() + '<div class="lz-row">' + sndBtn() + '<button type="button" class="btn" id="lz-close">\u2713 Done</button></div>';
+      h += '<div class="lz-row">' + sndBtn() + '<button type="button" class="btn" id="lz-close">\u2713 Done</button></div>';
     }
     box.innerHTML = h; wire();
     if (R.h && !R.hint) { R.hint = 1; save(); }
@@ -285,11 +283,9 @@
     startLife();
     var b = $('lz-snd'); if (b) { b.setAttribute('aria-pressed', String(!R.mute)); b.textContent = R.mute ? '\uD83D\uDD07 Sound off' : '\uD83D\uDD0A Sound on'; } }
   // live, no approval: each edit applies on this site at once; the state before it goes on his short step-back history.
-  // A change with words in it (typed, handwriting he marks as words, or a vector file with text) is held: see hasText / R.pub.
   function edit(fn) { if (!R.h || !R.own) return; var was = JSON.stringify(R.own); fn(R.own); if (JSON.stringify(R.own) === was) return controls();
-    R.hist.push(JSON.parse(was)); if (R.hist.length > HIST) R.hist.splice(0, R.hist.length - HIST); keep(); save(); render(); controls(); }
-  function keep() { if (!hasText(R.own)) R.pub = JSON.parse(JSON.stringify(R.own)); }   // the latest design with no words: the only one any public view may ever use
-  function back() { if (!R.h || !R.hist.length) return; R.own = R.hist.pop(); keep(); save(); render(); controls(); }
+    R.hist.push(JSON.parse(was)); if (R.hist.length > HIST) R.hist.splice(0, R.hist.length - HIST); save(); render(); controls(); }
+  function back() { if (!R.h || !R.hist.length) return; R.own = R.hist.pop(); save(); render(); controls(); }
   function wire() {
     var q = function (id, fn) { var e = $(id); if (e) e.onclick = fn; };
     q('lz-close', closeView); q('lz-mine', function () { asking = true; controls(); }); q('lz-snd', sndClick);
@@ -336,7 +332,7 @@
   // ---------------- the logo step: hand-over (for good) ----------------
   function handover() {
     if (R.h) return false;
-    var D = auto(); R.h = Date.now(); R.own = JSON.parse(JSON.stringify(D)); R.start = JSON.parse(JSON.stringify(D)); R.pub = JSON.parse(JSON.stringify(D)); R.hist = []; R.hint = 0; save();
+    var D = auto(); R.h = Date.now(); R.own = JSON.parse(JSON.stringify(D)); R.start = JSON.parse(JSON.stringify(D)); R.hist = []; R.hint = 0; save();
     render(); if (window.BuildMore) BuildMore.refresh(); return true;
   }
   // the logo step (Build more, after the first build): "Make your logo now or later?" Either way it is the hand-over.
@@ -356,10 +352,9 @@
   document.addEventListener('bi:lock', function () { closeView(); if (btn) btn.remove(); btn = null; svgH = null; if (AC) try { AC.close(); } catch (e) {} AC = null; });
   window.Logo = { step: step, handed: function () { return !!R.h; }, progress: progress, design: design, open: tap, startFrom: startFrom, inputs: inputs,
     back: back, history: function () { return R.hist.length; }, key: function () { return KEY; }, edit: openEditor,
-    held: function () { return hasText(design()); }, publicDesign: function () { return R.pub || R.start || auto(); },
     _k: { R: function () { return R; }, save: save, edit: edit, back: back, design: design, render: render, LAYERS: LAYERS, colours: colours,
       palette: palette, markSets: markSets, esc: esc, cssv: cssv, f: f, T: T, HEX: HEX, sndBtn: sndBtn, sndClick: sndClick, close: closeEditor,
-      held: held, hasText: hasText, el: el }, refresh: function () { render(); },
+      el: el }, refresh: function () { render(); },
     reset: function () { try { localStorage.removeItem(KEY); } catch (e) {} R = load(); render(); if (window.BuildMore) BuildMore.refresh(); } };
   function boot() { init(); setTimeout(function () { render(); }, T(-1) * 1000); }   // once Pieces / Dials have settled
   if (!window.PhiPumps) { var s = document.createElement('script'); s.src = 'js/phi-pumps.js?v=2'; s.async = true; s.onload = s.onerror = boot; document.head.appendChild(s); } else boot();

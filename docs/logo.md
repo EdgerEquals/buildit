@@ -58,23 +58,18 @@ last 8 are kept, a Fibonacci count; "Back to my original" can be stepped back to
   grow, which colour, which orbit marks, and whether to bring back a hidden piece. Two roll boxes (left: love most, applied at
   once; right: like least, kept so it comes last next time), Back (undoes that answer), Skip, Stop for now. Part-way visits
   resume after a refresh. The 5 asked are the ones he answered longest ago, so the logo builds out over time.
-- Start from: draw or write by hand (on-device canvas, finger or stylus), type (up to 21 characters), "with my bot" (tells him
+- Start from: draw or write by hand (on-device canvas, finger or stylus), type (up to 21 characters; kept in his logo on this device), "with my bot" (tells him
   to ask his bot; nothing is sent), or a vector file (SVG only, up to 144 kB). The file is cleaned on this device before use:
   only shape, gradient and text elements are kept; scripts, styles, foreignObject, images, links and animation are removed, as
   are event handlers, outside or script links and url() references. It is then drawn as an image, which cannot run scripts or
   load anything.
 - Loading: the editor file loads only when he first opens the editor. Nothing new loads before unlock.
 
-## Words in a logo wait for Dad (interim)
-Kids Club's interim safety rule: a change with words in it stays private until Dad says yes. That covers typed words,
-handwriting he marks as "letters or words", and an SVG with text elements. This page has no handwriting reader, so he
-is asked whether his drawing has letters or words in it.
-- How it is held: his logo state already lives only in this browser's storage for this site; it is never in a public file and
-  never sent. A held change is marked `text: true` and the view shows "Waiting for Dad". The page also keeps `pub`, the latest
-  design with no words. Any public view of his logo (none exists yet) may only use `Logo.publicDesign()`, which never contains
-  words. "Back to my original", "Step back" and "Take mine out" remove a held change at once.
-- Dad's yes: there is no on-page way for Dad to approve yet. Asking Dad is the kid's bot's job, and no bot or relay code was
-  changed here.
+## Words in a logo (Kids Club, 13:15 AWST)
+Every logo change, words included, goes live on this site at once with no hold and no name filter. Words can come in through
+typing, drawing or writing by hand, or an SVG with text. Each of those places in the editor shows a short tip in his own voice:
+"Tip: I'll keep my real name off my logo." The tip is in the editor only. The SVG cleaning above stays. His bot never puts a
+kid's name on a public page itself; the kid's own logo choices are his.
 
 ## Ask your bot to edit the logo
 - Link (this site): `https://edgerequals.github.io/buildit/#logo-edit`. Opening it shows the normal unlock; once unlocked, the

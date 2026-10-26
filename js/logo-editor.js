@@ -8,14 +8,14 @@
    3 START FROM drawing or writing by hand (an on-device canvas, finger or stylus), typing, chat with his bot (a pointer to it,
                 nothing sent), or a vector file (SVG only, cleaned on this device: no scripts, no outside links, no event
                 handlers, no styles, no embedded images).
-   WORDS ARE HELD: typed words, handwriting he marks as words, and SVG files with text elements are marked "waiting for Dad". They
-   stay in his logo state on this device only (never in a public file, never sent); js/logo.js keeps R.pub, the latest design
-   with no words, as the only design any public view may use. Ratios only; sizes from the page's own scale. */
+   WORDS GO LIVE (Kids Club, 13:15 AWST): every change, words included, goes live with no hold. Wherever words can get in
+   (typing, drawing or writing, an SVG with text) the editor shows a short tip in his own voice: keep your real name off.
+   Ratios only; sizes from the page's own scale. */
 (function () {
   'use strict';
   if (window.LogoEditor || !window.Logo || !Logo._k) return;
   var K = Logo._k, f = K.f, esc = K.esc, $ = function (id) { return document.getElementById(id); };
-  var sel = 'ball', mode = '', note = '', strokes = [], ink = null;
+  var sel = 'ball', mode = '', note = '', strokes = [], ink = null, TIP = '<p class="lz-h le-tip">\uD83D\uDCA1 Tip: I\'ll keep my real name off my logo.</p>';
   var CSS = '.le-card{border:1px solid var(--ln);border-radius:var(--r);background:var(--sf);padding:.618em 1em;margin:.618em 0;max-width:38em;width:100%;text-align:center}' +
     '.le-roll{display:flex;gap:1em;justify-content:center;flex-wrap:wrap}.le-box{flex:1 1 13em;display:flex;flex-direction:column;align-items:center;gap:.382em}' +
     '.le-box b{font-size:.854em;color:var(--mu);font-weight:normal}.le-sp{display:flex;align-items:center;gap:.382em}.le-v{min-width:8em;min-height:2.618em;display:grid;place-items:center;border:1px solid var(--ln);border-radius:var(--r);background:var(--sf2);padding:.236em .618em}' +
@@ -107,11 +107,11 @@
       (a ? '<button type="button" class="btn ghost2" id="le-noart">\uD83D\uDDD1 Take mine out</button>' : '') + '</div>';
     if (mode === 'draw') h += '<div class="le-card"><p class="lz-p">Draw or write with your finger or pen.</p><canvas class="le-cv" id="le-cv"></canvas><div class="lz-row">' +
       '<button type="button" class="btn ghost2" id="le-undo">\u21B6 Undo a line</button><button type="button" class="btn ghost2" id="le-clear">Clear</button></div>' +
-      '<p class="lz-p">Is it a drawing, or are there letters or words in it?</p><div class="lz-row"><button type="button" class="btn" id="le-dpic">\uD83C\uDFA8 It\'s a drawing</button><button type="button" class="btn ghost2" id="le-dword">\uD83D\uDD24 It has letters or words</button></div></div>';
-    if (mode === 'type') h += '<div class="le-card"><p class="lz-p">Type a word or a few letters for your logo. Words wait for Dad before anyone else could see them.</p>' +
+      TIP + '<div class="lz-row"><button type="button" class="btn" id="le-dpic">\u2713 Put it in my logo</button></div></div>';
+    if (mode === 'type') h += '<div class="le-card"><p class="lz-p">Type a word or a few letters for your logo.</p>' + TIP +
       '<input class="le-in" id="le-txt" maxlength="21" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Words for your logo"><div class="lz-row"><button type="button" class="btn" id="le-tok">Put it in my logo</button></div></div>';
     if (mode === 'chat') h += '<div class="le-card"><p class="lz-p"><b>Ask your bot.</b> Write \u201Cedit my logo\u201D in your chat with your bot. It sends you a button that opens this editor. Making your whole logo by chatting with your bot comes later.</p></div>';
-    if (mode === 'svg') h += '<div class="le-card"><p class="lz-p">Pick an SVG file. It is cleaned on this device first, and it stays here.</p><input type="file" id="le-file" accept=".svg,image/svg+xml"></div>';
+    if (mode === 'svg') h += '<div class="le-card"><p class="lz-p">Pick an SVG file. It is cleaned on this device first.</p>' + TIP + '<input type="file" id="le-file" accept=".svg,image/svg+xml"></div>';
     if (note) h += '<p class="lz-p" id="le-note">' + esc(note) + '</p>';
     return h;
   }
@@ -127,11 +127,11 @@
     cv.onpointermove = function (e) { if (!cur) return; var p = toU(e), l = cur[cur.length - 1]; if (Math.abs(p[0] - l[0]) + Math.abs(p[1] - l[1]) > f(-7)) { cur.push(p); paint(); } };
     cv.onpointerup = cv.onpointercancel = function () { if (cur && cur.length) strokes.push(cur); cur = null; paint(); };
     $('le-undo').onclick = function () { strokes.pop(); paint(); }; $('le-clear').onclick = function () { strokes = []; paint(); };
-    function save(words) { if (!strokes.length) { note = 'Draw something first.'; return render(); }
+    function save() { if (!strokes.length) { note = 'Draw something first.'; return render(); }
       var d = strokes.map(function (s) { return s.map(function (p, i) { return (i ? 'L' : 'M') + p[0].toFixed(3) + ' ' + p[1].toFixed(3); }).join(''); });
-      strokes = []; mode = ''; note = words ? 'Put in your logo. It has words, so it waits for Dad and stays on this device.' : 'Your drawing is in your logo.';
-      setArt({ k: 'draw', d: d, c: inkColour(), text: !!words }); }
-    $('le-dpic').onclick = function () { save(false); }; $('le-dword').onclick = function () { save(true); };
+      strokes = []; mode = ''; note = 'Your drawing is in your logo.';
+      setArt({ k: 'draw', d: d, c: inkColour() }); }
+    $('le-dpic').onclick = save;
     size();
   }
   function startWire() {
@@ -139,20 +139,19 @@
     var na = $('le-noart'); if (na) na.onclick = function () { note = ''; K.edit(function (o) { delete o.art; }); };
     canvasWire();
     var tk = $('le-tok'); if (tk) tk.onclick = function () { var v = String($('le-txt').value || '').replace(/[\u0000-\u001F<>]/g, '').trim().slice(0, 21); if (!v) return;
-      mode = ''; note = 'Put in your logo. Words wait for Dad and stay on this device.'; setArt({ k: 'type', t: v, c: inkColour(), text: true }); };
+      mode = ''; note = 'Your words are in your logo.'; setArt({ k: 'type', t: v, c: inkColour() }); };
     var fi = $('le-file'); if (fi) fi.onchange = function () { var fl = fi.files && fi.files[0]; if (!fl) return;
       if (!/\.svg$/i.test(fl.name) && fl.type !== 'image/svg+xml') { note = 'Only SVG vector files, please.'; return render(); }
       if (fl.size > MAXB) { note = 'That file is too big for a logo. Try a smaller SVG.'; return render(); }
       var rd = new FileReader(); rd.onload = function () { var c = clean(String(rd.result || '')); if (!c) { note = 'That file could not be read as an SVG.'; return render(); }
-        mode = ''; note = 'Your file is in your logo' + (c.removed ? ' (cleaned: ' + c.removed + ' unsafe bit' + (c.removed === 1 ? '' : 's') + ' taken out)' : '') + (c.text ? '. It has words, so it waits for Dad and stays on this device.' : '.');
-        setArt({ k: 'svg', svg: c.svg, text: c.text }); }; rd.readAsText(fl); };
+        mode = ''; note = 'Your file is in your logo' + (c.removed ? ' (cleaned: ' + c.removed + ' unsafe bit' + (c.removed === 1 ? '' : 's') + ' taken out)' : '') + '.' + (c.text ? ' \uD83D\uDCA1 Tip: I\'ll keep my real name off my logo.' : '');
+        setArt({ k: 'svg', svg: c.svg }); }; rd.readAsText(fl); };
   }
 
   // ---------------- render ----------------
   function render(box) {
     box = box || $('lz-ctl'); if (!box) return; var r = R(), d = D(), cur = d.layers[sel] || {}, h = '';
     if (!r.edSeen) { h += '<p class="lz-p" id="lz-hint"><b>This is your logo editor.</b> Changes show straight away. Tapping your logo brings it back any time.</p>'; r.edSeen = 1; K.save(); }
-    h += K.held();
     h += '<div class="lz-row"><button type="button" class="btn ghost2" id="lz-back"' + (r.hist.length ? '' : ' disabled') + '>\u21B6 Step back' + (r.hist.length ? ' (' + r.hist.length + ')' : '') + '</button><button type="button" class="btn ghost2" id="lz-start">\u21BA Back to my original</button></div>';
     h += qCard();
     h += '<p class="lz-h">Pieces: tap one to pick it, tap again to add or take it away</p><div class="lz-row" id="lz-layers">' + K.LAYERS.map(function (l) { var s = d.layers[l.id] || {};

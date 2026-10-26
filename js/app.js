@@ -84,7 +84,7 @@
     // golden-ratio dials (Kids Club core standard): tier 1, after unlock; nothing before the password
     if (Tiers.script && !window.Dials) Tiers.script('js/dials.js?v=3', 1, null, 'dials', false);
     // logo grows with the page (Kids Club): tier 2 after unlock, nothing before the password; its sound and zoom load only on a tap
-    if (Tiers.script && !window.Logo) Tiers.script('js/logo.js?v=4', 2, null, 'logo', false);
+    if (Tiers.script && !window.Logo) Tiers.script('js/logo.js?v=5', 2, null, 'logo', false);
     if (Tiers.script) { Tiers.script('js/orbit.js?v=1', 2, null, 'orbit'); Tiers.script('js/ratio-pump.js?v=1', 2, { 'data-site': 'buildit', 'data-freq': '0.75' }, 'pump', false); }
     Tiers.add(3, () => { const l = document.createElement('link'); l.rel = 'prefetch'; l.href = 'js/autodj.js?v=1'; document.head.appendChild(l); }, 'prefetch autodj');
     Tiers.prefetch('img/mark-head.svg?v=1');   // tier 3: an extra-questions preview
