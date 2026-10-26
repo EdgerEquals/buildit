@@ -78,11 +78,13 @@
     // tier 1: the piece-by-piece questions (most important after unlock); tier 2 (idle, PHI^-2 apart, usage-ordered):
     // chat poll + live line, orbit emojis, the ratio pump; tier 3: DJ engine + zoom mark prefetch. DJ itself loads on tap.
     // the learner model and the quiz orb load with the questions (tier 1), in order: model, orb, then the questions
-    if (!window.Pieces) { ['js/learner.js?v=3', 'js/quiz-orb.js?v=4', 'js/onboard.js?v=2', 'js/pathways.js?v=3', 'js/pieces.js?v=6'].forEach((u) => { const sp = document.createElement('script'); sp.src = u; sp.async = false; document.head.appendChild(sp); }); }
+    if (!window.Pieces) { ['js/learner.js?v=3', 'js/quiz-orb.js?v=4', 'js/onboard.js?v=3', 'js/pathways.js?v=3', 'js/pieces.js?v=7'].forEach((u) => { const sp = document.createElement('script'); sp.src = u; sp.async = false; document.head.appendChild(sp); }); }
     else document.dispatchEvent(new CustomEvent('bi:open'));
     Tiers.add(2, startChat, 'chat', false);
     // golden-ratio dials (Kids Club core standard): tier 1, after unlock; nothing before the password
-    if (Tiers.script && !window.Dials) Tiers.script('js/dials.js?v=2', 1, null, 'dials', false);
+    if (Tiers.script && !window.Dials) Tiers.script('js/dials.js?v=3', 1, null, 'dials', false);
+    // logo grows with the page (Kids Club): tier 2 after unlock, nothing before the password; its sound and zoom load only on a tap
+    if (Tiers.script && !window.Logo) Tiers.script('js/logo.js?v=1', 2, null, 'logo', false);
     if (Tiers.script) { Tiers.script('js/orbit.js?v=1', 2, null, 'orbit'); Tiers.script('js/ratio-pump.js?v=1', 2, { 'data-site': 'buildit', 'data-freq': '0.75' }, 'pump', false); }
     Tiers.add(3, () => { const l = document.createElement('link'); l.rel = 'prefetch'; l.href = 'js/autodj.js?v=1'; document.head.appendChild(l); }, 'prefetch autodj');
     Tiers.prefetch('img/mark-head.svg?v=1');   // tier 3: an extra-questions preview
@@ -95,7 +97,10 @@
     lon: () => (cfg && cfg.lon != null && isFinite(cfg.lon) ? +cfg.lon : null),   // same: the one coarse city point, encrypted config only
     enc: (o) => C.encryptJSON(key, o), dec: (o) => C.decryptJSON(key, o),
     async send(text, extra) { const m = { id: newId(), ts: Date.now(), from: 'user', text, ...(extra || {}) }; addMsg(m, 'pending'); render(); await deliver(msgs.get(m.id)); return msgs.get(m.id).state; },
-    state: (id) => (msgs.get(id) || {}).state
+    state: (id) => (msgs.get(id) || {}).state,
+    // read-only, for the logo (js/logo.js): his own answer sets already in this page's memory (decrypted log + pending), and the palette list
+    mine: () => [...msgs.values()].filter((m) => m.from === 'user' && m.kind === 'answers' && m.state !== 'failed').map((m) => ({ part: m.part, text: m.text, ts: m.ts })),
+    pals: () => PALS.map((p) => ({ t: p.t, pal: { ...p.pal } }))
   };
   // ---- DJ (sound): the engine (js/autodj.js) loads only when the DJ panel is first opened ----
   let djLoaded = false;
@@ -461,7 +466,7 @@
       if (rec.options.length < 2) rec.options = ['Yes', 'No'];
     }
     if (from === 'user' && m.reply_to) { rec.reply_to = String(m.reply_to); rec.answer = String(m.answer || ''); if (m.comment) rec.comment = String(m.comment); }
-    msgs.set(m.id, rec); setTimeout(ledState, 0); return !cur && from !== 'user';
+    msgs.set(m.id, rec); setTimeout(ledState, 0); if (rec.kind === 'answers' && !cur) document.dispatchEvent(new CustomEvent('bi:answers')); return !cur && from !== 'user';
   }
   const senderName = (from) => (from === 'dad' ? HOST() : BOT());
   const ASK = 'Ask more';

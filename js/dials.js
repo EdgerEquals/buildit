@@ -221,7 +221,7 @@
     var sp = yearSpan(lat), L = dayLen(lat, doyOf(t)), yc = sp[1] - sp[0] > 1e-3 ? 2 * (L - sp[0]) / (sp[1] - sp[0]) - 1 : 0;
     if (preview) yc = preview[1] === 'summer' ? 1 : -1;
     var pBeat = 1 / (1 / SKY.pS2 - 1 / SKY.pM2);                             // spring-neap beat of S2 and M2 (= half the synodic month)
-    return [
+    var out = [
       { id: 'sun',  p: 1,          c: sig,                        sw: PHI },                                         // rest/day (FLAGGED: no cited ratio; PHI)
       { id: 'M2',   p: SKY.pM2,    c: Math.cos(2 * tau * RAD),    sw: SKY.apogee / SKY.perigee },                    // lunar tide: perigee/apogee
       { id: 'S2',   p: SKY.pS2,    c: Math.cos(2 * s.ha * RAD),   sw: SKY.aphelion / SKY.perihelion },               // solar tide: perihelion/aphelion
@@ -229,6 +229,8 @@
       { id: 'anom', p: SKY.pAnom,  c: Math.cos(Mm * RAD),         sw: SKY.apogee / SKY.perigee },                    // perigee clock
       { id: 'year', p: SKY.pYear,  c: yc,                         sw: sp[1] / sp[0] }                                // local day length, longest/shortest
     ];
+    out.D = D; out.el = e; out.len = L / 24;   // for the logo (js/logo.js, js/phi-pumps.js): mean elongation (deg), sun height (deg), day length as a share of the day
+    return out;
   }
   function returnDays() { return R.ret ? R.ret / DAYMS : 1; }   // the kid's own return rhythm, else the mean solar day
   function seasonNow() {   // -1 .. +1: today's pumped swing as a ratio of its own peak
@@ -272,6 +274,9 @@
     summary: function () { var lt = R.lt || {}; return { pace: level().pace, depth: level().depth, help: level().help, back: +(lt.back || 0).toFixed(3), skip: +(lt.skip || 0).toFixed(3) }; },   // ratios only
     gate: function () { return { open: GATE, wouldSend: GATE ? api.summary() : null }; },   // there is no send path in this file
     rollback: function (n) { n = n || 1; while (n-- > 0 && R.log.length) { var l = R.log.pop(); R.r[l[1]] = l[2]; } save(); retarget(); return api.rungs(); },
+    // read-only, for the logo's pump tree (js/phi-pumps.js): the same on-device sky clocks and the kid's own measured tap rhythm
+    sky: function (t) { return pumps(t || nowT()); },
+    rhythm: function () { return { gap: S.gap || 0, usual: (R.lt && R.lt.gap) || 0, sessions: R.s | 0 }; },
     report: function () { return { rungs: api.rungs(), level: level(), season: seasonNow(), pumps: seasonNow.last, wcagSteps: floorSteps, gate: GATE, log: R.log.slice(), proposals: JSON.parse(JSON.stringify(R.prop)) }; }
   };
   // ---- preview panel for Danny (?dials=1): rungs, reading, last moves. Nothing here is sent anywhere. ----

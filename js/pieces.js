@@ -303,7 +303,7 @@
   }
   document.addEventListener('bi:open', open);
   document.addEventListener('bi:lock', function () { undrop(); if (window.QuizOrb) QuizOrb.reset(); S = null; $('pz').hidden = true; $('pz').innerHTML = ''; });
-  window.Pieces = { open: open, list: function () { return PIECES(); }, more: function () { go('more'); }, moreBtn: moreBtn,
+  window.Pieces = { open: open, list: function () { return PIECES(); }, sent: function () { var f = ST && ST.first; return f && f.sent ? Object.keys(f.sent) : []; }, picks: function () { var f = ST && ST.first; return f && f.ans ? f.ans : {}; }, more: function () { go('more'); }, moreBtn: moreBtn,
     moreLeft: function () { var m = MODE; MODE = ''; use('more'); var n = LIST.length; MODE = ''; use(m || 'first'); return n; } };
   open();
 })();
