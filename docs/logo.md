@@ -10,6 +10,7 @@ moon clock come from its on-device sky clocks. Rollback for the live page: tag `
 |---|---|---|
 | `js/logo.js` | the logo: assembly, hand-over, the logo view and its tiles | tier 2, after unlock |
 | `js/phi-pumps.js` | the page pump root (13) and registry, anchor B | with `js/logo.js` |
+| `js/logo-editor.js` | the logo editor: questions, tiles, draw / type / chat / vector file | first time he opens the editor |
 | `js/logo-zoom-life.js` | the open logo view's stars, glow, shimmer and sparkles (generic copy of the Kids Club zoom file, no other logo's art, creatures or names) | first tap on the logo, never in Lite |
 | `js/logo-sound.js` | the logo sound engine (the Kids Club engine's sequencer, rendered with plain Web Audio: no music library) | first tap, never in Lite |
 | `tools/phi_selfcheck.py` | rule 12 self-check ALERT on fixed numbers (report only) | never shipped to the page |
@@ -47,6 +48,42 @@ An earlier unscoped preview record on this site is moved to this site's key once
 **Live, no approval.** His tile edits apply on this site at once (header logo and the open view), with no approval step.
 "Back to my original" sits near the top of the editor at all times. "Step back" undoes his last edits one at a time (the
 last 8 are kept, a Fibonacci count; "Back to my original" can be stepped back too). All on this device, this site only.
+
+## Logo editor flow (Kids Club, 26 Oct 2026)
+- Tap the logo: its view opens. After the hand-over a small "edit" button sits next to the close X (the X's height, one phi step
+  wider). Edit opens the editor; the X or Done closes it. Every change is already saved on this device; closing keeps it.
+- The logo step (Build more, after the first build) asks "Make your logo now or later?". Now opens the editor. Later keeps the
+  built logo as it is, shows a one-time hint, and the step stays in Build more. Either way it is the hand-over.
+- Questions: each visit asks up to 5 direction questions built from his own path: for each piece he built, which way it should
+  grow, which colour, which orbit marks, and whether to bring back a hidden piece. Two roll boxes (left: love most, applied at
+  once; right: like least, kept so it comes last next time), Back (undoes that answer), Skip, Stop for now. Part-way visits
+  resume after a refresh. The 5 asked are the ones he answered longest ago, so the logo builds out over time.
+- Start from: draw or write by hand (on-device canvas, finger or stylus), type (up to 21 characters), "with my bot" (tells him
+  to ask his bot; nothing is sent), or a vector file (SVG only, up to 144 kB). The file is cleaned on this device before use:
+  only shape, gradient and text elements are kept; scripts, styles, foreignObject, images, links and animation are removed, as
+  are event handlers, outside or script links and url() references. It is then drawn as an image, which cannot run scripts or
+  load anything.
+- Loading: the editor file loads only when he first opens the editor. Nothing new loads before unlock.
+
+## Words in a logo wait for Dad (interim)
+Kids Club's interim safety rule: a change with words in it stays private until Dad says yes. That covers typed words,
+handwriting he marks as "letters or words", and an SVG with text elements. This page has no handwriting reader, so he
+is asked whether his drawing has letters or words in it.
+- How it is held: his logo state already lives only in this browser's storage for this site; it is never in a public file and
+  never sent. A held change is marked `text: true` and the view shows "Waiting for Dad". The page also keeps `pub`, the latest
+  design with no words. Any public view of his logo (none exists yet) may only use `Logo.publicDesign()`, which never contains
+  words. "Back to my original", "Step back" and "Take mine out" remove a held change at once.
+- Dad's yes: there is no on-page way for Dad to approve yet. Asking Dad is the kid's bot's job, and no bot or relay code was
+  changed here.
+
+## Ask your bot to edit the logo
+- Link (this site): `https://edgerequals.github.io/buildit/#logo-edit`. Opening it shows the normal unlock; once unlocked, the
+  logo editor opens on his own logo (hand-over first if needed). The `#logo-edit` part is then cleared from the address. No
+  sound starts, because it is not a tap. The link carries nothing about him.
+- What his bot should reply (button label, then text):
+  - Button: `✏️ Edit my logo` → `https://edgerequals.github.io/buildit/#logo-edit`
+  - Text: `Here's your logo editor: https://edgerequals.github.io/buildit/#logo-edit. Open it and unlock your page. Your changes show straight away, and you can always tap "Back to my original".`
+  - If he has more than one site, the bot asks which one first; each site has its own link and its own logo state.
 
 ## Sound and motion
 - No AudioContext until his first tap on the logo; it is created inside that tap. The sound engine and zoom life load then.

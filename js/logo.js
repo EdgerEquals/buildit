@@ -169,8 +169,18 @@
       if (!st.on) return;
       if (!seen || seen.indexOf(l.id) >= 0) { g.style.transition = 'none'; g.classList.add('on'); } else pending.push(g);
     });
+    drawArt(svg, D);
     if (build) { void svg.getBoundingClientRect(); svg.querySelectorAll('.lg').forEach(function (g) { g.style.transition = ''; });
       if (pending.length) requestAnimationFrame(function () { requestAnimationFrame(function () { pending.forEach(function (g) { g.classList.add('on'); }); }); }); }
+  }
+  // his own art (drawing, typed words or a cleaned vector file from the editor), inside the ring, under the orbit
+  function drawArt(svg, D) {
+    var g = svg.querySelector('.lg-art'); if (!g) { g = el('g', { 'class': 'lg-art' }); svg.insertBefore(g, svg.querySelector('[data-l="orbit"]')); }
+    var a = D.art || null, sig = a ? JSON.stringify(a) : ''; if (g.getAttribute('data-s') === sig) return; g.setAttribute('data-s', sig);
+    while (g.firstChild) g.removeChild(g.firstChild); if (!a) return; var r = 1 - f(-3);
+    if (a.k === 'draw') (a.d || []).forEach(function (d) { g.appendChild(el('path', { d: d, fill: 'none', stroke: a.c || 'currentColor', 'stroke-width': f(-5), 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })); });
+    else if (a.k === 'type') { var t = el('text', { 'text-anchor': 'middle', 'dominant-baseline': 'central', 'font-size': Math.min(f(-1), f(2) / Math.max(1, String(a.t).length)).toFixed(3), 'font-weight': 'bold', fill: a.c || 'currentColor' }); t.textContent = a.t; g.appendChild(t); }
+    else if (a.k === 'svg') g.appendChild(el('image', { href: 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(a.svg), x: -r, y: -r, width: 2 * r, height: 2 * r }));   // as an image: no scripts, no outside loads
   }
   function mkSvg(id) { var s = el('svg', { viewBox: '-1 -1 2 2', id: id, 'aria-hidden': 'true', focusable: 'false' }); return s; }
 
@@ -191,6 +201,8 @@
       '.lz-t{min-width:14.59vmin;min-height:14.59vmin;border-radius:var(--r);border:1px solid var(--ln);background:var(--sf);color:var(--tx);font-size:1.27em;display:grid;place-items:center;padding:.236em}' +
       '.lz-t[aria-pressed=true]{background:var(--sf2);border-color:var(--ac);box-shadow:0 0 0 2px var(--ac)}.lz-t.off{opacity:.618}.lz-t small{display:block;font-size:.618em;color:var(--mu)}' +
       '.lz-sw{width:61.8%;height:61.8%;border-radius:50%;border:1px solid var(--ln)}.lz-h{font-size:.854em;color:var(--mu);margin:.618em 0 0;text-align:center}' +
+      '.lz-bar{position:sticky;top:-5.57vmin;align-self:flex-end;display:flex;gap:.618em;z-index:4}.lz-x{min-width:2.618em;height:2.618em;border-radius:2em;border:1px solid var(--ln);background:var(--sf);color:var(--tx);font-size:1em;padding:0 .618em}' +
+      '.lz-x.lz-ed{min-width:4.236em}.lz-wait{border:1px dashed var(--ln);border-radius:var(--r);padding:.618em}' +
       'html.lite .lg,.rm .lg{transition:none}@media (prefers-reduced-motion:reduce){.lg,.lg *{transition:none!important}}';
     document.head.appendChild(s);
   }
@@ -207,7 +219,7 @@
     btn.addEventListener('click', tap);
     if (window.PhiPumps) PhiPumps.provide('progress', function () { return progress().share; });
     if (window.QuizOrb && QuizOrb.part) QuizOrb.part('#h-logo', 'Your logo. It builds itself from what you build on your page. Tap it to open it big.', 'Logo');
-    render();
+    render(); deep();
   }
   // the header logo: layers he has seen before show at once; newly done ones glide in (cascade)
   function render() {
@@ -230,68 +242,68 @@
   function lifeScript(cb) { if (window.LogoZoomLife) return cb(); var s = document.createElement('script'); s.src = 'js/logo-zoom-life.js?v=2'; s.async = true; s.onload = cb; document.head.appendChild(s); }
   function openView() {
     if (!ov) { lastFocus = document.activeElement; ov = document.createElement('div'); ov.id = 'lz'; ov.className = 'lz-ov'; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true'); ov.setAttribute('aria-label', 'Your logo');
-      ov.innerHTML = '<div class="lz-top"><div class="lz-fig" id="lz-fig"></div></div><div id="lz-ctl"></div>'; document.body.appendChild(ov); document.addEventListener('keydown', onKey);
+      ov.innerHTML = '<div class="lz-bar" id="lz-bar"></div><div class="lz-top"><div class="lz-fig" id="lz-fig"></div></div><div id="lz-ctl"></div>'; document.body.appendChild(ov); document.addEventListener('keydown', onKey);
       var sv = mkSvg('lg-z'); $('lz-fig').appendChild(sv); draw(sv, design(), null);
-      controls(); var c = $('lz-close'); if (c) try { c.focus({ preventScroll: true }); } catch (e) {} startLife();
+      controls(); var c = $('lz-x'); if (c) try { c.focus({ preventScroll: true }); } catch (e) {} startLife();
     } else { draw($('lg-z'), design(), null); controls(); }
   }
-  // the controls under the big logo (tiles and buttons only; re-drawn on each change, the logo itself glides)
+  // ---------------- view mode (light) and the editor (js/logo-editor.js, loaded only when he opens it) ----------------
+  var editing = false, asking = false, EDJS = 'js/logo-editor.js?v=1';
+  function hasText(o) { return !!(o && o.art && o.art.text); }
+  // the X, and after the hand-over a small "edit" button next to it, sized from the X (one phi step wider to fit the word)
+  function topBar() {
+    var t = $('lz-bar'); if (!t) return;
+    t.innerHTML = (R.h && !editing && !asking ? '<button type="button" class="lz-x lz-ed" id="lz-edit">\u270F\uFE0F edit</button>' : '') +
+      '<button type="button" class="lz-x" id="lz-x" aria-label="' + (editing ? 'Close the editor. Everything is saved' : 'Close') + '">\u2715</button>';
+    var e = $('lz-edit'); if (e) e.onclick = openEditor; $('lz-x').onclick = editing ? closeEditor : closeView;
+  }
+  function held() { return hasText(design()) ? '<p class="lz-p lz-wait">\u23F3 <b>Waiting for Dad.</b> Your logo has words in it, so it stays on this device only until Dad says yes.</p>' : ''; }
   function controls() {
-    var D = design(), pr = progress(), handed = !!R.h, h = '', box = $('lz-ctl'); if (!box) return; ov.classList.toggle('ed', handed);
-    if (!handed) {
+    var box = $('lz-ctl'); if (!box) return; ov.classList.toggle('ed', editing); topBar();
+    if (editing) { if (window.LogoEditor) LogoEditor.render(box); return; }
+    var pr = progress(), h = '';
+    if (asking) {
+      h += '<p class="lz-p"><b>Make your logo now or later?</b> What you built so far is kept either way.</p>';
+      h += '<div class="lz-row"><button type="button" class="btn" id="lz-now">\u2728 Now</button><button type="button" class="btn ghost2" id="lz-later">\u23F0 Later</button></div>';
+    } else if (!R.h) {
       h += '<p class="lz-p"><b>Your logo builds itself as you build your page.</b> Every step you finish adds a piece to it, in the colours you picked.</p>';
       h += '<div class="lz-dots" aria-hidden="true">' + pr.steps.map(function (s) { return '<i class="' + (s.done ? 'd' : '') + '"></i>'; }).join('') + '</div>';
       h += '<p class="lz-p">' + pr.done + ' of ' + pr.total + ' steps built so far.</p>';
-      h += '<div class="lz-row">' + ((!window.Onboard || Onboard.done()) ? '<button type="button" class="btn" id="lz-mine">\u2728 Make it yours now</button>' : '') + sndBtn() + '<button type="button" class="btn ghost2" id="lz-close">Close</button></div>';
+      h += '<div class="lz-row">' + ((!window.Onboard || Onboard.done()) ? '<button type="button" class="btn" id="lz-mine">\u2728 Make it yours</button>' : '') + sndBtn() + '<button type="button" class="btn ghost2" id="lz-close">Close</button></div>';
       if (window.Onboard && !Onboard.done()) h += '<p class="lz-h">You can make it yours after step 1, naming the parts of your page.</p>';
     } else {
-      if (!R.hint) h += '<p class="lz-p" id="lz-hint"><b>This logo is yours now.</b> Tap it any time to change it.</p>';
-      h += '<p class="lz-h">Pieces: tap one to pick it, tap again to add or take it away</p><div class="lz-row" id="lz-layers">' + LAYERS.map(function (l) { var s = D.layers[l.id] || {};
-        return '<button type="button" class="lz-t' + (s.on ? '' : ' off') + '" data-layer="' + l.id + '" aria-pressed="' + (sel === l.id) + '" aria-label="' + esc(l.name) + (s.on ? ' (on)' : ' (off)') + '">' + l.icon + '<small>' + (s.on ? 'on' : 'off') + '</small></button>'; }).join('') + '</div>';
-      var cur = D.layers[sel] || {};
-      h += '<div class="lz-row"><button type="button" class="btn ghost2" id="lz-onoff">' + (cur.on ? 'Take away: ' : 'Add: ') + esc(nameOf(sel)) + '</button><button type="button" class="btn ghost2" id="lz-small">\u2796 Smaller</button><button type="button" class="btn ghost2" id="lz-big">\u2795 Bigger</button></div>';
-      h += '<div class="lz-row"><button type="button" class="btn ghost2" id="lz-back"' + (R.hist.length ? '' : ' disabled') + '>\u21B6 Step back' + (R.hist.length ? ' (' + R.hist.length + ')' : '') + '</button><button type="button" class="btn ghost2" id="lz-start">\u21BA Back to my original</button></div>';   // always near the top
-      h += '<p class="lz-h">Colour for ' + esc(nameOf(sel)) + '</p><div class="lz-row" id="lz-cols">' + swatches().map(function (c) { return '<button type="button" class="lz-t" data-col="' + c + '" aria-pressed="' + (cur.c === c) + '" aria-label="Colour ' + c + '"><span class="lz-sw" style="background:' + c + '"></span></button>'; }).join('') + '</div>';
-      if (sel === 'orbit') h += '<p class="lz-h">Orbit marks</p><div class="lz-row" id="lz-marks">' + markSets().slice(0, 8).map(function (m) { return '<button type="button" class="lz-t" data-mark="' + esc(m) + '" aria-pressed="' + (D.marks === m) + '">' + esc(m.split(' ').join('')) + '</button>'; }).join('') + '</div>';
-      h += '<div class="lz-row">' + sndBtn() + '<button type="button" class="btn" id="lz-close">\u2713 Done</button></div>';
+      if (!R.hint) h += '<p class="lz-p" id="lz-hint"><b>This logo is yours now.</b> Tap it any time to see it big, and \u270F\uFE0F edit to change it.</p>';
+      h += held() + '<div class="lz-row">' + sndBtn() + '<button type="button" class="btn" id="lz-close">\u2713 Done</button></div>';
     }
-    var foc = document.activeElement && document.activeElement.id;
-    box.innerHTML = h; wire(); if (foc && $(foc)) try { $(foc).focus({ preventScroll: true }); } catch (e) {}
-    if (handed && !R.hint) { R.hint = 1; save(); }
+    box.innerHTML = h; wire();
+    if (R.h && !R.hint) { R.hint = 1; save(); }
   }
-  function nameOf(id) { for (var i = 0; i < LAYERS.length; i++) if (LAYERS[i].id === id) return LAYERS[i].name; return id; }
   function sndBtn() { if (lite()) return ''; var on = !R.mute; return '<button type="button" class="btn ghost2" id="lz-snd" aria-pressed="' + on + '">' + (on ? '\uD83D\uDD0A Sound on' : '\uD83D\uDD07 Sound off') + '</button>'; }
-  function swatches() {   // only colours he picked or the page already has (Fibonacci count)
-    var D = design(), L = [], add = function (c) { if (c && HEX.test(c) && L.indexOf(c.toUpperCase()) < 0) L.push(c.toUpperCase()); };
-    var a = colours(true), b = colours(false); Object.keys(a).forEach(function (k) { add(a[k]); add(b[k]); });
-    var pal = palette(); if (pal) Object.keys(pal).forEach(function (k) { add(pal[k]); });
-    ['--ac', '--ac2', '--ok', '--bad', '--mu', '--tx'].forEach(function (v) { add(cssv(v)); });
-    Object.keys(D.layers).forEach(function (k) { add(D.layers[k].c); });
-    return L.slice(0, 13);
-  }
-  // live, no approval: each tile edit applies on this site at once; the state before it goes on his short step-back history
+  function sndClick() { R.mute = R.mute ? 0 : 1; save();
+    if (!R.mute && !lite()) { if (!AC) { var C = window.AudioContext || window.webkitAudioContext; if (C) try { AC = new C(); } catch (e) {} } else try { AC.resume(); } catch (e) {} }   // inside this tap
+    else if (AC) try { AC.suspend(); } catch (e) {}
+    startLife();
+    var b = $('lz-snd'); if (b) { b.setAttribute('aria-pressed', String(!R.mute)); b.textContent = R.mute ? '\uD83D\uDD07 Sound off' : '\uD83D\uDD0A Sound on'; } }
+  // live, no approval: each edit applies on this site at once; the state before it goes on his short step-back history.
+  // A change with words in it (typed, handwriting he marks as words, or a vector file with text) is held: see hasText / R.pub.
   function edit(fn) { if (!R.h || !R.own) return; var was = JSON.stringify(R.own); fn(R.own); if (JSON.stringify(R.own) === was) return controls();
-    R.hist.push(JSON.parse(was)); if (R.hist.length > HIST) R.hist.splice(0, R.hist.length - HIST); save(); render(); controls(); }
-  function back() { if (!R.h || !R.hist.length) return; R.own = R.hist.pop(); save(); render(); controls(); }
+    R.hist.push(JSON.parse(was)); if (R.hist.length > HIST) R.hist.splice(0, R.hist.length - HIST); keep(); save(); render(); controls(); }
+  function keep() { if (!hasText(R.own)) R.pub = JSON.parse(JSON.stringify(R.own)); }   // the latest design with no words: the only one any public view may ever use
+  function back() { if (!R.h || !R.hist.length) return; R.own = R.hist.pop(); keep(); save(); render(); controls(); }
   function wire() {
     var q = function (id, fn) { var e = $(id); if (e) e.onclick = fn; };
-    q('lz-close', closeView);
-    q('lz-mine', function () { step(); });
-    q('lz-snd', function () { R.mute = R.mute ? 0 : 1; save();
-      if (!R.mute && !lite()) { if (!AC) { var C = window.AudioContext || window.webkitAudioContext; if (C) try { AC = new C(); } catch (e) {} } else try { AC.resume(); } catch (e) {} }   // inside this tap
-      else if (AC) try { AC.suspend(); } catch (e) {}
-      startLife();
-      var b = $('lz-snd'); if (b) { b.setAttribute('aria-pressed', String(!R.mute)); b.textContent = R.mute ? '\uD83D\uDD07 Sound off' : '\uD83D\uDD0A Sound on'; } });
-    var ly = ov.querySelectorAll('[data-layer]'); for (var i = 0; i < ly.length; i++) ly[i].onclick = function () { var id = this.getAttribute('data-layer');
-      if (sel === id) edit(function (o) { o.layers[id].on = !o.layers[id].on; }); else { sel = id; controls(); } };
-    q('lz-onoff', function () { edit(function (o) { o.layers[sel].on = !o.layers[sel].on; }); });
-    q('lz-big', function () { edit(function (o) { var s = o.layers[sel]; s.on = true; s.s = Math.min(2, (s.s || 0) + 1); }); });      // +-2 rungs: Fibonacci
-    q('lz-small', function () { edit(function (o) { var s = o.layers[sel]; s.on = true; s.s = Math.max(-2, (s.s || 0) - 1); }); });
-    var cs = ov.querySelectorAll('[data-col]'); for (var j = 0; j < cs.length; j++) cs[j].onclick = function () { var c = this.getAttribute('data-col'); if (!HEX.test(c)) return; edit(function (o) { o.layers[sel].c = c; o.layers[sel].on = true; }); };
-    var ms = ov.querySelectorAll('[data-mark]'); for (var k = 0; k < ms.length; k++) ms[k].onclick = function () { var m = this.getAttribute('data-mark'); if (markSets().indexOf(m) < 0) return; edit(function (o) { o.marks = m; o.layers.orbit.on = true; }); };
-    q('lz-back', back);
-    q('lz-start', function () { if (!R.start) return; edit(function (o) { var s = JSON.parse(JSON.stringify(R.start)); o.layers = s.layers; o.marks = s.marks; o.tint = s.tint; }); });
+    q('lz-close', closeView); q('lz-mine', function () { asking = true; controls(); }); q('lz-snd', sndClick);
+    q('lz-now', function () { asking = false; handover(); openEditor(); });
+    q('lz-later', function () { asking = false; handover(); closeView(); hintDrop('Your logo is kept just as it is. Tap it any time, or find it in Build more.'); });
   }
+  function openEditor() {
+    if (!R.h) handover(); editing = true; asking = false; if (!ov) openView();
+    if (window.LogoEditor) { controls(); try { ov.scrollTop = 0; } catch (e) {} return; }
+    var box = $('lz-ctl'); if (box) box.innerHTML = '<p class="lz-p">\u2026</p>'; topBar(); ov.classList.add('ed');
+    if (!$('lz-edjs')) { var s = document.createElement('script'); s.id = 'lz-edjs'; s.src = EDJS; s.async = true; s.onload = function () { if (ov && editing) controls(); }; document.head.appendChild(s); }
+  }
+  function closeEditor() { editing = false; save(); if (ov) controls(); }   // every edit is already saved on this device; closing keeps it
+  function hintDrop(text) { if (!(window.QuizOrb && QuizOrb.drop && btn)) return; try { window.scrollTo(0, 0); } catch (e) {} QuizOrb.drop(btn, { text: text, onEnd: function () { R.hint = 1; save(); } }); }
   function startLife() {
     pumpLoop(true); if (lite()) return;
     lifeScript(function () { if (!ov) return; var fg = $('lz-fig'); if (fg) LogoZoomLife.start(fg, R.mute ? null : AC, { logo: 'kid-logo' }); });
@@ -313,9 +325,9 @@
     }
     raf = requestAnimationFrame(frame);
   }
-  function onKey(e) { if (e.key === 'Escape' && ov) { e.preventDefault(); closeView(); } }
+  function onKey(e) { if (e.key === 'Escape' && ov) { e.preventDefault(); if (editing) closeEditor(); else closeView(); } }
   function closeView() {
-    if (!ov) return; pumpLoop(false); if (window.LogoZoomLife) LogoZoomLife.stop();
+    if (!ov) return; editing = false; asking = false; pumpLoop(false); if (window.LogoZoomLife) LogoZoomLife.stop();
     if (AC) { var a = AC; setTimeout(function () { if (!ov) try { a.suspend(); } catch (e) {} }, T(-1) * 1000); }
     document.removeEventListener('keydown', onKey); ov.remove(); ov = null;
     if (lastFocus && lastFocus.focus) try { lastFocus.focus(); } catch (e) {}
@@ -324,19 +336,18 @@
   // ---------------- the logo step: hand-over (for good) ----------------
   function handover() {
     if (R.h) return false;
-    var D = auto(); R.h = Date.now(); R.own = JSON.parse(JSON.stringify(D)); R.start = JSON.parse(JSON.stringify(D)); R.hist = []; R.hint = 0; save();
+    var D = auto(); R.h = Date.now(); R.own = JSON.parse(JSON.stringify(D)); R.start = JSON.parse(JSON.stringify(D)); R.pub = JSON.parse(JSON.stringify(D)); R.hist = []; R.hint = 0; save();
     render(); if (window.BuildMore) BuildMore.refresh(); return true;
   }
-  function step() {
-    var first = handover();
-    if (ov) closeView();
-    if (first && window.QuizOrb && QuizOrb.drop && btn) {   // the one-time light hint: the help orb's own grow-on-drop, on the logo
-      try { window.scrollTo(0, 0); } catch (e) {}
-      var d = QuizOrb.drop(btn, { text: 'This logo is yours now. It keeps what you built. Tap it any time to change it.', onEnd: function () { R.hint = 1; save(); } });
-      if (d) return;
-    }
-    tap();
+  // the logo step (Build more, after the first build): "Make your logo now or later?" Either way it is the hand-over.
+  function step() { if (R.h) { tap(); openEditor(); return; } asking = true; tap(); controls(); }
+  // ask-your-bot deep link: <page>#logo-edit opens this site's editor once the page is unlocked (no sound: not a tap)
+  function deep() {
+    if (location.hash !== '#logo-edit' || !btn) return;
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+    openView(); openEditor();
   }
+  window.addEventListener('hashchange', deep);
 
   // ---------------- life cycle ----------------
   function init() { mount(); }
@@ -344,7 +355,11 @@
   document.addEventListener('bi:open', function () { setTimeout(init, 0); });
   document.addEventListener('bi:lock', function () { closeView(); if (btn) btn.remove(); btn = null; svgH = null; if (AC) try { AC.close(); } catch (e) {} AC = null; });
   window.Logo = { step: step, handed: function () { return !!R.h; }, progress: progress, design: design, open: tap, startFrom: startFrom, inputs: inputs,
-    back: back, history: function () { return R.hist.length; }, key: function () { return KEY; }, refresh: function () { render(); },
+    back: back, history: function () { return R.hist.length; }, key: function () { return KEY; }, edit: openEditor,
+    held: function () { return hasText(design()); }, publicDesign: function () { return R.pub || R.start || auto(); },
+    _k: { R: function () { return R; }, save: save, edit: edit, back: back, design: design, render: render, LAYERS: LAYERS, colours: colours,
+      palette: palette, markSets: markSets, esc: esc, cssv: cssv, f: f, T: T, HEX: HEX, sndBtn: sndBtn, sndClick: sndClick, close: closeEditor,
+      held: held, hasText: hasText, el: el }, refresh: function () { render(); },
     reset: function () { try { localStorage.removeItem(KEY); } catch (e) {} R = load(); render(); if (window.BuildMore) BuildMore.refresh(); } };
   function boot() { init(); setTimeout(function () { render(); }, T(-1) * 1000); }   // once Pieces / Dials have settled
   if (!window.PhiPumps) { var s = document.createElement('script'); s.src = 'js/phi-pumps.js?v=2'; s.async = true; s.onload = s.onerror = boot; document.head.appendChild(s); } else boot();
