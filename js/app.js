@@ -64,6 +64,13 @@
   // the call-me word he picked (js/callme.js, this device only) comes first; blank = the old greeting. Never sent anywhere.
   const CALLME = () => { try { const r = JSON.parse(localStorage.getItem('buildit.callme') || 'null'); return r && typeof r.t === 'string' ? r.t.trim() : ''; } catch (e) { return ''; } };
   const NAME = () => CALLME() || (cfg && cfg.name) || 'there';
+  // NAME CHECK ON EVERY WORD (Kids Club standard, Danny 14:51 AWST): the words of his real name come only from the encrypted config,
+  // in memory after unlock, normalised (lower case, no accents, look-alike digits read as letters); never stored, sent or shown.
+  // Each word is tested on its own, inside other words too ('Smithy' trips 'Smith'); 3-letter words at the start of a word, shorter ones only whole.
+  const NORM = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[013457@$]/g, (c) => ({ 0: 'o', 1: 'i', 3: 'e', 4: 'a', 5: 's', 7: 't', '@': 'a', $: 's' })[c]);
+  const NAMEWORDS = () => ((cfg && cfg.name) ? NORM(cfg.name).split(/[^a-z]+/).filter(Boolean) : []);
+  const nameLike = (t) => { const n = NORM(t), flat = n.replace(/[^a-z]/g, ''), toks = n.split(/[^a-z]+/);
+    return NAMEWORDS().some((w) => w.length > 3 ? flat.includes(w) : w.length === 3 ? toks.some((x) => x.startsWith(w)) : toks.includes(w)); };
   const HOST = () => (cfg && cfg.host) || 'Danny';
   const BOT = () => (cfg && cfg.bot) || 'your bot';   // ONE setting: `bot` in the encrypted config (renamable by the user)
   async function openApp() {
@@ -81,13 +88,13 @@
     // chat poll + live line, orbit emojis, the ratio pump; tier 3: DJ engine + zoom mark prefetch. DJ itself loads on tap.
     // the learner model and the quiz orb load with the questions (tier 1), in order: model, orb, then the questions
     // rhythms keep going while away (js/rhythm.js): first, so everything after it can register; nothing before the password
-    if (!window.Pieces) { ['js/rhythm.js?v=1', 'js/callme.js?v=1', 'js/learner.js?v=3', 'js/quiz-orb.js?v=6', 'js/onboard.js?v=4', 'js/pathways.js?v=4', 'js/pieces.js?v=8'].forEach((u) => { const sp = document.createElement('script'); sp.src = u; sp.async = false; document.head.appendChild(sp); }); }
+    if (!window.Pieces) { ['js/rhythm.js?v=1', 'js/callme.js?v=2', 'js/learner.js?v=3', 'js/quiz-orb.js?v=7', 'js/onboard.js?v=4', 'js/pathways.js?v=4', 'js/pieces.js?v=8'].forEach((u) => { const sp = document.createElement('script'); sp.src = u; sp.async = false; document.head.appendChild(sp); }); }
     else document.dispatchEvent(new CustomEvent('bi:open'));
     Tiers.add(2, startChat, 'chat', false);
     // golden-ratio dials (Kids Club core standard): tier 1, after unlock; nothing before the password
     if (Tiers.script && !window.Dials) Tiers.script('js/dials.js?v=8', 1, null, 'dials', false);
     // logo grows with the page (Kids Club): tier 2 after unlock, nothing before the password; its sound and zoom load only on a tap
-    if (Tiers.script && !window.Logo) Tiers.script('js/logo.js?v=7', 2, null, 'logo', false);
+    if (Tiers.script && !window.Logo) Tiers.script('js/logo.js?v=8', 2, null, 'logo', false);
     // stuck alert to Dad (Kids Club): tier 2 after unlock, reads the dials' rhythm; nothing changes on screen
     if (Tiers.script && !window.Stuck) Tiers.script('js/stuck.js?v=1', 2, null, 'stuck', false);
     // 'Is this the change you want?' for his live picks (the quiz orb's spotlight), tier 2, once per round
@@ -101,16 +108,19 @@
   function setBotName() { document.querySelectorAll('.botav').forEach((im) => { if (im.id === 'h-av') { im.alt = BOT(); im.title = BOT(); } }); }
   // ---- API for js/pieces.js (same key, same relay, same encrypted log; nothing new leaves the page) ----
   window.BI = {
-    ready: () => !!key, host: () => HOST(), name: () => NAME(), bot: () => BOT(),
+    ready: () => !!key, host: () => HOST(), name: () => NAME(), bot: () => BOT(), nameLike: (t) => !!key && nameLike(t),
     lat: () => (cfg && cfg.lat != null && isFinite(cfg.lat) ? +cfg.lat : null),   // coarse, only if Danny adds it to the encrypted config
     lon: () => (cfg && cfg.lon != null && isFinite(cfg.lon) ? +cfg.lon : null),   // same: the one coarse city point, encrypted config only
     enc: (o) => C.encryptJSON(key, o), dec: (o) => C.decryptJSON(key, o),
     async send(text, extra) { const m = { id: newId(), ts: Date.now(), from: 'user', text, ...(extra || {}) }; addMsg(m, 'pending'); render(); await deliver(msgs.get(m.id)); return msgs.get(m.id).state; },
     state: (id) => (msgs.get(id) || {}).state,
-    // a silent page signal (js/stuck.js): encrypted, same relay, no text, so it never shows in his chat and the bot's reader skips it
+    // a silent page signal (js/stuck.js, and the name-check counts from js/callme.js): encrypted, same relay, no text, so it never shows in his chat and the bot's reader skips it
     async signal(o) {
-      if (!key || !cfg || !o || ['stuck', 'recovered'].indexOf(o.kind) < 0) return false;
-      const m = { id: newId(), ts: Date.now(), from: 'user', kind: o.kind, step: String(o.step || '').slice(0, 89), label: String(o.label || '').slice(0, 89), before: String(o.before || '').slice(0, 13) };
+      if (!key || !cfg || !o || ['stuck', 'recovered', 'namecheck'].indexOf(o.kind) < 0) return false;
+      const N = (v) => Math.max(0, Math.min(999, Math.round(+v || 0)));   // name check (js/callme.js): counts only, never text
+      const m = o.kind === 'namecheck'
+        ? { id: newId(), ts: Date.now(), from: 'user', kind: 'namecheck', where: ['callme', 'logo', 'look'].indexOf(o.where) >= 0 ? o.where : 'callme', trips: N(o.trips), retries: N(o.retries), surprise: N(o.surprise), keep: N(o.keep), loop: o.loop ? 1 : 0, z: Math.round(Math.max(-9, Math.min(9, +o.z || 0)) * 100) / 100 }
+        : { id: newId(), ts: Date.now(), from: 'user', kind: o.kind, step: String(o.step || '').slice(0, 89), label: String(o.label || '').slice(0, 89), before: String(o.before || '').slice(0, 13) };
       try { const r = await fetch(`${cfg.relay.base}/${cfg.relay.topic}`, { method: 'POST', body: JSON.stringify({ v: 1, ...(await C.encryptJSON(key, m)) }), headers: { 'Content-Type': 'text/plain' } }); return r.ok; } catch (e) { return false; }
     },
     // read-only, for the logo (js/logo.js): his own answer sets already in this page's memory (decrypted log + pending), and the palette list

@@ -195,7 +195,10 @@
     var f = el('form', 'qo-row'), inp = el('input'); inp.type = 'text'; inp.maxLength = 8; inp.setAttribute('aria-label', 'Or type one emoji'); inp.placeholder = 'or type one emoji'; inp.autocomplete = 'off';
     var go = el('button', 'go', 'Use it'); go.type = 'submit'; f.appendChild(inp); f.appendChild(go); pan.appendChild(f);
     var msg = el('p', 'qo-say'); pan.appendChild(msg);
-    f.onsubmit = function (e) { e.preventDefault(); var g = (inp.value || '').trim(); if (setLook(g, 'friend')) open(helpBody); else msg.textContent = 'Just one emoji works here, like 🦊 or 🚀.'; };
+    var surprise = function () { var o = LOOKS[1 + Math.floor(Math.random() * (LOOKS.length - 1))]; setLook(o[0], o[1]); if (window.NameKind && NameKind.done) NameKind.done('look'); open(helpBody); };
+    f.onsubmit = function (e) { e.preventDefault(); var g = (inp.value || '').trim(); if (setLook(g, 'friend')) { if (window.NameKind && NameKind.done) NameKind.done('look'); open(helpBody); return; }
+      if (window.NameKind && NameKind.like(g)) { NameKind.line(f, { what: 'look', onSurprise: surprise, onKeep: function () { inp.value = ''; NameKind.done('look'); } }); return; }   // name check: kind, with Surprise me
+      msg.textContent = 'Only one emoji fits in here, like 🦊 or 🚀. '; var s2 = el('button', null, '🎲 Surprise me'); s2.type = 'button'; s2.onclick = surprise; msg.appendChild(s2); };
   }
   // the orb's own help text for the controls no other file registers (plain words; onboard.js registers the named parts)
   var BASE_HELP = [

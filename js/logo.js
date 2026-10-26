@@ -248,7 +248,7 @@
     } else { draw($('lg-z'), design(), null); controls(); }
   }
   // ---------------- view mode (light) and the editor (js/logo-editor.js, loaded only when he opens it) ----------------
-  var editing = false, asking = false, EDJS = 'js/logo-editor.js?v=2';
+  var editing = false, asking = false, EDJS = 'js/logo-editor.js?v=3';
   // the X, and after the hand-over a small "edit" button next to it, sized from the X (one phi step wider to fit the word)
   function topBar() {
     var t = $('lz-bar'); if (!t) return;

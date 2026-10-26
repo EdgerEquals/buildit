@@ -139,7 +139,9 @@
     var na = $('le-noart'); if (na) na.onclick = function () { note = ''; K.edit(function (o) { delete o.art; }); };
     canvasWire();
     var tk = $('le-tok'); if (tk) tk.onclick = function () { var v = String($('le-txt').value || '').replace(/[\u0000-\u001F<>]/g, '').trim().slice(0, 21); if (!v) return;
-      mode = ''; note = 'Your words are in your logo.'; setArt({ k: 'type', t: v, c: inkColour() }); };
+      var put = function (w) { mode = ''; note = 'Your words are in your logo.'; setArt({ k: 'type', t: w, c: inkColour() }); if (window.NameKind && NameKind.done) NameKind.done('word'); };
+      if (window.NameKind && NameKind.like(v)) { NameKind.line(tk.parentNode, { what: 'word', onSurprise: function (w) { $('le-txt').value = w; }, onKeep: function () { put(v); } }); return; }   // name check on every word: suggest, never block
+      put(v); };
     var fi = $('le-file'); if (fi) fi.onchange = function () { var fl = fi.files && fi.files[0]; if (!fl) return;
       if (!/\.svg$/i.test(fl.name) && fl.type !== 'image/svg+xml') { note = 'Only SVG vector files, please.'; return render(); }
       if (fl.size > MAXB) { note = 'That file is too big for a logo. Try a smaller SVG.'; return render(); }
