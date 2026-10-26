@@ -38,6 +38,7 @@
     sendLo:0.04, sendHi:0.5, send0:0.03, shim:0.9, makeup:Math.pow(PHI,1.5), padSus:0.8, compThr:-26, compRatio:3,         // PENDING-DANNY sends, sustain, dynamics
     vPad:0.62, vHat:0.55, vHatB:0.5, vTrip:0.62, vTripFall:0.2, v808:0.9, v808lo:0.03, vPluck:0.8, vWood:0.9, vGlass:1.3,    // PENDING-DANNY velocities
     vBird:0.5, brB:0.5, brS:0.6, accLo:0.82, accHi:0.18, sparkle:Math.pow(PHI,-9), swish:Math.pow(PHI,-8),                    // PENDING-DANNY velocities, zoom sounds
+    dip:1,   // Loudness 14:26 (Danny): the music dips this many whole phi rungs under the logo (x PHI^-1); one matrix rung he can move
     nudge:Math.pow(PHI,-4), nTide:Math.pow(PHI,-2), nMoon:Math.pow(PHI,-3), nRatio:Math.pow(PHI,-3), nClock:Math.pow(PHI,-4) // PENDING-DANNY feed nudges on loudness
   };
   function amp(k){var f=W.LogoSound&&W.LogoSound.matrix,v=typeof f==='function'?f(k):null;return typeof v==='number'&&isFinite(v)?v:AMP[k];}
@@ -57,7 +58,12 @@
   function feed(n){var R=REG();if(!R)return null;var s=subs[n]||(subs[n]=R.subscribe(n)),v=s.get();return typeof v==='number'&&isFinite(v)?v:null;}
   function z(x){return x==null?0:x;}
   function quiet(){var q=feed('quiet');return q==null?1:q;}
-  function level(k){return amp(k)*quiet();}
+  // LOGO UNDER THE MUSIC (Loudness 14:23, Danny): logo level = the page music's undipped level x PHI^-1, as a ratio of the music's
+  // as-built level (the DJ's slider default x its own pump volume, js/autodj.js), so at the DJ's defaults the logo is one phi step
+  // quieter than before and then follows the music. No music playing: the last level the music had on this device (never louder on its own).
+  function music(){var d=W.AutoDJ&&W.AutoDJ.level,v=d?d():null;if(typeof v!=='number'||!isFinite(v)){try{v=parseFloat(localStorage.getItem('buildit.dj.level'));}catch(e){v=NaN;}}
+    var ref=W.AutoDJ&&W.AutoDJ.ref?W.AutoDJ.ref():0.8*0.55;return (isFinite(v)&&v>0?v/ref:1)/PHI;}
+  function level(k){return amp(k)*quiet()*music();}
   // ---- pitch pumps ----
   function own(){try{var o=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--own-step'));return isFinite(o)?o:0;}catch(e){return 0;}}
   function anchors(){var R=REG(),b=R&&R.B?R.B():null,b0=R&&R.B0?R.B0():null;b=b||b0||P(3+own());b0=b0||b;return {B:b,B0:b0};}   // fallback: the page's own breathing beat
@@ -157,7 +163,7 @@
     function verb(sec){var c=ac.createConvolver();c.buffer=ir(sec);c.connect(comp);K.push(c);return c;}
     var revS=verb(S(2)),revL=verb(S(5)),sendS=g(amp('send0')),sendL=g(0),shim=g(0);sendS.connect(revS);sendL.connect(revL);shim.connect(revL);
     var C={};['synth','wood','glass','pad','breath','bird','sub','hats'].forEach(function(k){var c=g(0);c.connect(bus);c.connect(sendS);c.connect(sendL);C[k]=c;});
-    function lv(k){return amp(k)*amp('head')*st.loud;}   // matrix level x matrix head x quiet hours (no master node)
+    function lv(k){return amp(k)*amp('head')*st.loud*music();}   // matrix level x matrix head x quiet hours x music relation (no master node)
     function levels(t,tc){['synth','wood','glass','pad','bird','sub','hats'].forEach(function(k){tgt(C[k].gain,alive?lv(k):0,t,tc||S(1));});
       tgt(C.breath.gain,alive?lv('breath')*st.breath:0,t,tc||S(1));}
     var padF=f('lowpass',base*P(7));padF.connect(C.pad);
@@ -205,8 +211,8 @@
   var live={},current=null;
   function create(ac,dest,o){o=o||{};var alive=true,timer=0,next=0,seq=Sequencer({events:o.events,logo:o.logo,forceM:o.forceM}),R=Renderer(ac,dest);
     var api={event:function(n){seq.event(n);},nudge:function(a){seq.nudge(a);},state:function(){return seq.state();},base:function(){return R.base();},
-      stop:function(fade){if(!alive)return;alive=false;if(current===api)current=null;clearTimeout(timer);seq.allOff(ac.currentTime).forEach(R.ev);R.stop(ac.currentTime,fade);}};
-    if(current&&current!==api){try{current.stop();}catch(e){}}current=api;
+      stop:function(fade){if(!alive)return;alive=false;if(current===api){current=null;if(W.AutoDJ&&W.AutoDJ.duck)W.AutoDJ.duck(false);}clearTimeout(timer);seq.allOff(ac.currentTime).forEach(R.ev);R.stop(ac.currentTime,fade);}};
+    if(current&&current!==api){try{current.stop();}catch(e){}}current=api;if(W.AutoDJ&&W.AutoDJ.duck)W.AutoDJ.duck(true);   // the music dips under the logo
     next=ac.currentTime+S(-2);
     function tick(){if(!alive)return;if(next<ac.currentTime)next=ac.currentTime+S(-3);
       while(next<ac.currentTime+S(1)){var evs=seq.step(next);for(var i=0;i<evs.length;i++)R.ev(evs[i]);next+=STEP;}

@@ -28,6 +28,10 @@
     pace:   { ceil: 2, start: 4, floor: 'closed' },   // retune half-width in phi steps: +-.382 (speed x0.83..x1.20) / +-.146 / none
     season: { ceil: 4, start: 5, floor: 'closed' }    // warmth strength: .146 / .090 / none
   };
+  // Rule phi "B floor and ceiling, mirror within sky limits" (Danny 2026-10-26 14:27 AWST): the long-term pace average is a DEEP rung
+  // (Steve's PHI^-8), so it remembers far more than one visit and the pace dial can move; B mirrors the kid only within sky-B x PHI^+-n,
+  // n = Dial 2's ceiling rung (Danny's own).
+  var DEEP = 8;
   // ================================================================================================================
 
   function val(r) { return r === 'closed' ? 0 : Math.pow(PHI, -r); }
@@ -59,10 +63,14 @@
 
   // ---- live layer (memory only) -> session layer ----
   var f1 = val(R.r.info) || val(RANGE.info.floor);
-  var S = { n: 0, gap: 0, roll: 0, back: 0, skip: 0, ans: 0, drop: 0, lite: 0 }, lastT = 0, longest = sec(9);
+  var S = { n: 0, gap: 0, roll: 0, back: 0, skip: 0, ans: 0, drop: 0, lite: 0 }, lastT = 0, longest = sec(9), kP = null, fLT = Math.pow(PHI, -DEEP);
+  // the pause limit comes from SKY-B (the tide clock's anchor, js/phi-pumps.js B0), never from the kid-moved B: sky-B x PHI^k, with k the
+  // whole phi step that lands it on the page's longest beat (an exponent, not a value). Before the sky clocks run: the page's longest beat.
+  function pause() { var b0 = null; try { b0 = window.PhiPumps && PhiPumps.B0 ? PhiPumps.B0() : null; } catch (e) {} if (!b0) return sec(9);
+    if (kP == null) kP = Math.round(Math.log(sec(9) / b0) / Math.log(PHI)); return (longest = b0 * Math.pow(PHI, kP)); }
   function live(kind) {
     var t = Date.now(), g = 0;
-    if (lastT) { g = (t - lastT) / 1000; if (g < longest) S.gap = S.gap ? S.gap + f1 * (g - S.gap) : g; }   // longer than the page's longest beat = away
+    if (lastT) { g = (t - lastT) / 1000; if (g < pause()) S.gap = S.gap ? S.gap + f1 * (g - S.gap) : g; }   // longer than the page's longest beat = away
     lastT = t; S.n++; if (kind) S[kind]++;
     BEATS.forEach(function (f) { try { f(g || 0, kind || 'tap'); } catch (e) {} });   // read-only listeners (js/stuck.js): the gap and the kind, never what was tapped
   }
@@ -85,7 +93,7 @@
   function fold() {
     if (S.n - folded.n < 2) return;
     var now = rates(S), before = R.lt ? R.lt.back + R.lt.skip : null;
-    if (!R.lt) R.lt = now; else Object.keys(now).forEach(function (k) { if (k === 'gap' && !R.lt.gap) R.lt.gap = now.gap; else if (k !== 'gap' || now.gap) R.lt[k] += f1 * (now[k] - R.lt[k]); });
+    if (!R.lt) R.lt = now; else Object.keys(now).forEach(function (k) { if (k === 'gap' && !R.lt.gap) R.lt.gap = now.gap; else if (k !== 'gap' || now.gap) R.lt[k] += fLT * (now[k] - R.lt[k]); });   // deep rung (was the info share f1 = PHI^-2: too shallow, the pace dial could not move)
     var lv = level();   // did this session change the reading? (checked by the next session)
     R.ps = { gap: now.gap, bs: now.back + now.skip, usual: before, lite: S.lite, ch: !lv0 || lv.pace !== lv0.pace || lv.help !== lv0.help || lv.depth !== lv0.depth };
     folded.n = S.n; save();
@@ -287,7 +295,7 @@
     rollback: function (n) { n = n || 1; while (n-- > 0 && R.log.length) { var l = R.log.pop(); R.r[l[1]] = l[2]; } save(); retarget(); return api.rungs(); },
     // read-only, for the logo's pump tree (js/phi-pumps.js): the same on-device sky clocks and the kid's own measured tap rhythm
     sky: function (t) { return pumps(t || nowT()); },
-    rhythm: function () { return { gap: S.gap || 0, usual: (R.lt && R.lt.gap) || 0, sessions: R.s | 0, f1: f1, longest: longest }; },
+    rhythm: function () { return { gap: S.gap || 0, usual: (R.lt && R.lt.gap) || 0, sessions: R.s | 0, f1: f1, longest: pause(), mirror: RANGE.pace.ceil }; },
     onBeat: function (f) { if (typeof f === 'function') BEATS.push(f); },
     report: function () { return { rungs: api.rungs(), level: level(), season: seasonNow(), pumps: seasonNow.last, wcagSteps: floorSteps, gate: GATE, log: R.log.slice(), proposals: JSON.parse(JSON.stringify(R.prop)) }; }
   };

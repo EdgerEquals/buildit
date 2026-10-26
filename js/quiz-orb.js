@@ -16,7 +16,13 @@
    string (a yes / not-quite question, e.g. "Is this the change you want?", o.choices + o.onPick(k)) or an ask() spec.
    The glow re-pulses on an exhaling phi cascade (Exhale, js/onboard.js) while nobody answers, then rests. Reduced
    motion or Lite: no growing, only the ring and glow. Released by home() or release(). Reusable for any later prompt.
-   locked: no Later button, no Escape, no scrim tap, no orb tap to close: used by the required naming step only. */
+   locked: no Later button, no Escape, no scrim tap, no orb tap to close: used by the required naming step only.
+   HELP ORB ON BY DEFAULT, IN HIS OWN LOOK (Kids Club standard, Danny 2026-10-26 14:30 AWST): the orb starts itself on the first
+   screen after unlock (call-me and onboarding included). Tapping it (with nothing to ask) opens its help panel: "drag me onto
+   anything", plus Change how I look (an owl, a car, a moon ... or any one emoji he types). The look is his own pick, so it is
+   live at once (auto-live standard), saved on this device only (Stream 1), and changes nothing else: same drop handler, grow
+   on drop and help text. Every visible control gets help text: the registry below, the parts js/onboard.js registers, and
+   for anything else a plain line from the control's own label, or "still being tuned" for a part with no help yet. */
 (function () {
   'use strict';
   if (window.QuizOrb) return;
@@ -162,6 +168,50 @@
     st.orb.style.bottom = r && r.top < innerHeight ? Math.round(innerHeight - r.top + 10) + 'px' : '';
     if (!st.raf && st.t === 0) { st.g = null; }
   }
+  var K_LOOK = 'buildit.orblook';
+  var LOOKS = [['?', 'orb'], ['\uD83E\uDD89', 'owl'], ['\uD83D\uDE97', 'car'], ['\uD83C\uDF19', 'moon'], ['\uD83E\uDD16', 'robot'], ['\u2B50', 'star'], ['\uD83D\uDC09', 'dragon'], ['\u26BD', 'ball']];
+  function look() { try { var v = JSON.parse(localStorage.getItem(K_LOOK) || 'null'); if (v && typeof v.g === 'string' && isGlyph(v.g)) return v; } catch (e) {} return { g: '?', n: 'orb' }; }
+  function isGlyph(g) { try { return g === '?' || (g.length <= 8 && /^\p{Extended_Pictographic}/u.test(g) && !/[\p{L}\p{N}]/u.test(g)); } catch (e) { return LOOKS.some(function (l) { return l[0] === g; }); } }   // one emoji, never letters or numbers (no names)
+  function setLook(g, n) { if (!isGlyph(g)) return false; try { localStorage.setItem(K_LOOK, JSON.stringify({ g: g, n: n || 'friend' })); } catch (e) {} paintLook(); if (window.Adapt) Adapt.note('quiz-orb', 'look'); return true; }
+  function paintLook() { if (!st) return; var l = look(), i = st.orb.querySelector('i'); if (i) i.textContent = l.g;
+    st.orb.setAttribute('aria-label', 'Your help ' + l.n + '. Drag it onto anything to find out what it is, or tap it.'); }
+  function helpBody(pan) {
+    var l = look(); pan.appendChild(el('span', 'qo-term', 'Your help ' + l.n));
+    pan.appendChild(el('h2', null, 'Drag me onto anything'));
+    pan.appendChild(el('p', 'qo-say', 'See a button, a knob or a light you don’t know? Drag me onto it and let go. I’ll tell you what it is.'));
+    pan.appendChild(el('p', 'qo-say', 'Change how I look:'));
+    var row = el('div', 'qo-opts many'); row.setAttribute('role', 'group');
+    LOOKS.forEach(function (o) { var b = el('button', null, o[0] + ' ' + o[1]); b.type = 'button'; if (o[0] === l.g) b.setAttribute('aria-pressed', 'true'); b.onclick = function () { setLook(o[0], o[1]); open(helpBody); }; row.appendChild(b); });
+    pan.appendChild(row);
+    var f = el('form', 'qo-row'), inp = el('input'); inp.type = 'text'; inp.maxLength = 8; inp.setAttribute('aria-label', 'Or type one emoji'); inp.placeholder = 'or type one emoji'; inp.autocomplete = 'off';
+    var go = el('button', 'go', 'Use it'); go.type = 'submit'; f.appendChild(inp); f.appendChild(go); pan.appendChild(f);
+    var msg = el('p', 'qo-say'); pan.appendChild(msg);
+    f.onsubmit = function (e) { e.preventDefault(); var g = (inp.value || '').trim(); if (setLook(g, 'friend')) open(helpBody); else msg.textContent = 'Just one emoji works here, like 🦊 or 🚀.'; };
+  }
+  // the orb's own help text for the controls no other file registers (plain words; onboard.js registers the named parts)
+  var BASE_HELP = [
+    ['dj-play', 'Play / stop for your DJ. It starts or stops the music your page makes.', 'DJ play button'],
+    ['dj-vol', 'The DJ’s volume slider. Slide it to make the music louder or quieter. Your phone’s own volume works too.', 'Volume slider'],
+    ['dj-chips', 'The DJ’s knobs. Each one shows what it is doing right now. Tap one to nudge it your way.', 'DJ knobs'],
+    ['dj-read', 'What the DJ is playing now, and why.', 'DJ readout'],
+    ['dj-pumps', 'The things that change the music: time of day, weather, how busy you are and your mood.', 'What changes the music'],
+    ['tab-c', 'Switches to the chat with your bot.', 'Chat tab'], ['chat-new', 'Starts a fresh chat with your bot.', 'New chat'],
+    ['msg', 'Type a message to your bot here.', 'Message box'], ['send-btn', 'Sends your message to your bot.', 'Send button'],
+    ['ren-btn', 'Changes your bot’s name.', 'Rename button'], ['f-stat', 'Says if your page is online or offline.', 'Status'],
+    ['bm-go', 'Build more: more parts of your page you can choose.', 'Build more'], ['pz-go', 'Starts building your page, one piece at a time.', 'Start building'],
+    ['q-skip', 'Skips this question. You can come back to it.', 'Skip'], ['q-back', 'Goes back one question.', 'Back'], ['q-lock', 'Locks in your pick and moves on.', 'Lock it in']
+  ];
+  function guess(t) {   // a control nobody registered: say what it is from its own label, in plain words
+    var c = t.closest ? t.closest('button,a,input,select,textarea,label,[role=button],[role=slider],summary') : null, n = c || t;
+    var name = ((n.getAttribute && (n.getAttribute('aria-label') || n.getAttribute('title'))) || n.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 55);
+    if (!c) return 'This part is still being tuned. Ask your bot about it in the chat.';
+    var tag = c.tagName, ty = (c.getAttribute('type') || '').toLowerCase(), role = c.getAttribute('role');
+    if (tag === 'INPUT' && ty === 'range' || role === 'slider') return 'A slider' + (name ? ' for ' + name : '') + '. Slide it to change it.';
+    if (tag === 'INPUT' || tag === 'TEXTAREA') return 'A box you type in' + (name ? ': ' + name : '') + '.';
+    if (tag === 'SELECT') return 'A list to pick from' + (name ? ': ' + name : '') + '.';
+    if (tag === 'SUMMARY') return 'Tap this to open or close ' + (name ? '“' + name + '”' : 'this part') + '.';
+    return name ? 'The “' + name + '” button. Tap it to use it.' : 'A button. This one is still being tuned.';
+  }
   function init() {
     if (st) return window.QuizOrb;
     css();
@@ -171,8 +221,8 @@
     st.ring = el('div', 'qorb-ring'); st.ring.setAttribute('aria-hidden', 'true');
     st.pan = el('div', 'qorb-pan'); st.pan.hidden = true; st.pan.setAttribute('role', 'dialog'); st.pan.setAttribute('aria-modal', 'true');
     st.orb = el('button', 'qorb'); st.orb.type = 'button'; st.orb.id = 'quiz-orb'; st.orb.innerHTML = '<i aria-hidden="true">?</i>';
-    st.orb.setAttribute('aria-label', 'Quiz orb. It brings the questions to the middle of the screen. Tap to open it.');
-    st.orb.onclick = function () { if (st.dragged && Date.now() - st.dragged < Math.pow(PHI, -1 + OWN) * 1000) return; if (st.t === 1) { if (!locked()) home(); return; } if (st.spec && st.spec.picked == null) ask(st.spec); else intro(); };
+    paintLook(); BASE_HELP.forEach(function (h) { if (!PARTS.some(function (pp) { return pp.sel === h[0]; })) part(h[0], h[1], h[2]); });
+    st.orb.onclick = function () { if (st.dragged && Date.now() - st.dragged < Math.pow(PHI, -1 + OWN) * 1000) return; if (st.t === 1) { if (!locked()) home(); return; } if (st.spec && st.spec.picked == null) ask(st.spec); else if (window.Learner && !Learner.introSeen()) intro(); else open(helpBody); };
     host.appendChild(st.scrim); host.appendChild(st.ring); host.appendChild(st.pan); host.appendChild(st.orb);
     document.addEventListener('keydown', keys, true); dragInit();
     addEventListener('resize', function () { avoid(); place(); if (st.t === 1) { geo(); draw(); } });
@@ -231,7 +281,10 @@
     var lift = null; if (cs.position === 'static') { lift = [t.style.position, t.style.zIndex]; t.style.position = 'relative'; t.style.zIndex = o.bubble === false ? '39' : '41'; }   // a spotlit part stays under the question panel
     if (calm()) document.documentElement.classList.add('qorb-calm');
     t.classList.add('qorb-spot'); st.spot = { el: t, rect: r, lift: lift, onEnd: o.onEnd };
-    var text = o.text || (hit && hit.p && hit.p.text);
+    if (!hit && !o.text && o.bubble !== false) {   // a part inside a registered one: the control itself if it is one, else the part around it
+      var pp = partOf(t), ctl = t.closest ? t.closest('button,a,input,select,textarea,[role=button],[role=slider],summary') : null;
+      if (pp && (!ctl || ctl === pp.el || !pp.el.contains(ctl))) hit = pp; }
+    var text = o.text || (hit && hit.p && hit.p.text) || (o.bubble !== false ? guess(t) : null);
     if (o.bubble !== false && text) {
       var bub = el('div', 'qorb-bub'); bub.setAttribute('role', 'status');
       if (hit && hit.p && hit.p.name) bub.appendChild(el('b', null, hit.p.name + ' '));
@@ -276,5 +329,7 @@
     });
     return { release: release, found: !!t };
   }
-  window.QuizOrb = { init: init, ask: ask, picked: picked, home: home, intro: intro, reset: reset, spotlight: spotlight, release: release, drop: drop, part: part, hold: function (on) { if (!st) init(); st.hold = !!on; }, state: function () { return st ? { p: st.p, t: st.t } : null; } };
+  // on by default: the orb starts itself once the page is unlocked (this file loads only after unlock)
+  if (document.getElementById('screen-app')) { if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else setTimeout(init, 0); }
+  window.QuizOrb = { look: look, setLook: setLook, init: init, ask: ask, picked: picked, home: home, intro: intro, reset: reset, spotlight: spotlight, release: release, drop: drop, part: part, hold: function (on) { if (!st) init(); st.hold = !!on; }, state: function () { return st ? { p: st.p, t: st.t } : null; } };
 })();

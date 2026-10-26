@@ -239,7 +239,7 @@
     if (window.Adapt) Adapt.note('logo', 'open');
     openView();
   }
-  function lifeScript(cb) { if (window.LogoZoomLife) return cb(); var s = document.createElement('script'); s.src = 'js/logo-zoom-life.js?v=2'; s.async = true; s.onload = cb; document.head.appendChild(s); }
+  function lifeScript(cb) { if (window.LogoZoomLife) return cb(); var s = document.createElement('script'); s.src = 'js/logo-zoom-life.js?v=3'; s.async = true; s.onload = cb; document.head.appendChild(s); }
   function openView() {
     if (!ov) { lastFocus = document.activeElement; ov = document.createElement('div'); ov.id = 'lz'; ov.className = 'lz-ov'; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true'); ov.setAttribute('aria-label', 'Your logo');
       ov.innerHTML = '<div class="lz-bar" id="lz-bar"></div><div class="lz-top"><div class="lz-fig" id="lz-fig"></div></div><div id="lz-ctl"></div>'; document.body.appendChild(ov); document.addEventListener('keydown', onKey);
@@ -357,5 +357,5 @@
       el: el }, refresh: function () { render(); },
     reset: function () { try { localStorage.removeItem(KEY); } catch (e) {} R = load(); render(); if (window.BuildMore) BuildMore.refresh(); } };
   function boot() { init(); setTimeout(function () { render(); }, T(-1) * 1000); }   // once Pieces / Dials have settled
-  if (!window.PhiPumps) { var s = document.createElement('script'); s.src = 'js/phi-pumps.js?v=3'; s.async = true; s.onload = s.onerror = boot; document.head.appendChild(s); } else boot();
+  if (!window.PhiPumps) { var s = document.createElement('script'); s.src = 'js/phi-pumps.js?v=4'; s.async = true; s.onload = s.onerror = boot; document.head.appendChild(s); } else boot();
 })();

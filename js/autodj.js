@@ -99,7 +99,7 @@
 
   // ---------- audio graph ----------
   var AC = window.AudioContext || window.webkitAudioContext;
-  var ctx = null, master = null, bus = null, revIn = null, noise = null, meter = null, out = null;
+  var ctx = null, master = null, bus = null, duckG = null, ducked = false, revIn = null, noise = null, meter = null, out = null;
   // ---------- media bridge: WebAudio -> MediaStream -> hidden <audio>, so a phone treats the DJ as media playback ----------
   var el = null, direct = true;
   function bridge() {
@@ -134,7 +134,8 @@
       var conv = ctx.createConvolver(), L = Math.floor(ctx.sampleRate * 2.2), ir = ctx.createBuffer(2, L, ctx.sampleRate);
       for (var c = 0; c < 2; c++) { var d = ir.getChannelData(c); for (var i = 0; i < L; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / L, 3); }
       conv.buffer = ir; revIn = ctx.createGain(); revIn.gain.value = 0.35; revIn.connect(conv); conv.connect(bus);
-      bus.connect(master); master.connect(comp); comp.connect(ctx.destination); out = comp; bridge();
+      duckG = ctx.createGain(); duckG.gain.value = ducked ? DIP() : 1;   // the logo dip (Loudness standard, 14:26): its own node, so the pump volume never fights it
+      bus.connect(duckG); duckG.connect(master); master.connect(comp); comp.connect(ctx.destination); out = comp; bridge();
       meter = ctx.createAnalyser(); meter.fftSize = 2048; comp.connect(meter);              // level check for tests only
       var n = ctx.sampleRate, b = ctx.createBuffer(1, n, n), nd = b.getChannelData(0); for (var j = 0; j < n; j++) nd[j] = Math.random() * 2 - 1; noise = b;
     } catch (e) { ctx = null; }
@@ -339,6 +340,14 @@
   // ---------- UI (DJ panel) ----------
   var $ = function (id) { return document.getElementById(id); };
   var btn, vol, read, readP, led, chips;
+  // LOUDNESS (Kids Club Loudness standard, Danny 2026-10-26 14:23 and 14:26 AWST). level(): the music's UNDIPPED level (slider x pump
+  // volume), which the logo follows at x PHI^-1; it is saved on the device so the logo keeps that level when no music plays.
+  // duck(on): while the logo's sound plays the music dips by one amplitude-matrix rung (LogoSound.amp('dip'), default 1 = x PHI^-1)
+  // and comes back after, both on the free-wheel glide (the DJ's own shortest crossfade as the time constant), never a jump.
+  function DIP() { var r = window.LogoSound && LogoSound.amp ? LogoSound.amp('dip') : null; return Math.pow(PHI, -(typeof r === 'number' && isFinite(r) ? r : 1)); }
+  function musicLevel() { var v = master && bus ? master.gain.value * bus.gain.value : sliderVol() * compute().vol;   // the graph's own undipped level (duck is its own node)
+    try { localStorage.setItem('buildit.dj.level', v.toFixed(4)); } catch (e) {} return v; }
+  function duck(on) { ducked = !!on; if (playing) musicLevel(); if (duckG && ctx) { duckG.gain.cancelScheduledValues(ctx.currentTime); duckG.gain.setTargetAtTime(ducked ? DIP() : 1, ctx.currentTime, Math.pow(PHI, LAD - 2) / 3); } }
   function sliderVol() { var v = vol ? +vol.value : +(store(K_VOL) || 80); return clamp(isFinite(v) ? v : 80, 0, 100) / 100; }
   function sgn(v) { return (v > 0 ? '+' : v < 0 ? '\u2212' : '\u00B1') + Math.abs(v); }
   function paint(c) {
@@ -408,10 +417,11 @@
     buildChips(); cur = compute(); paint(cur); schedule(cur.fade);
     setInterval(function () { if (!document.hidden) paint(compute()); }, 1000);
   }
-  window.AutoDJ = { compute: compute, pumps: pumps, GEN: Object.keys(GEN), set: function (k, v) { if (LADDER[k]) setTo(k, v); paint(compute()); save(); },
+  window.AutoDJ = { level: function () { return playing ? musicLevel() : null; }, ref: function () { return 0.8 * 0.55; }, duck: duck,   // ref: the DJ's as-built slider default x pump volume
+    compute: compute, pumps: pumps, GEN: Object.keys(GEN), set: function (k, v) { if (LADDER[k]) setTo(k, v); paint(compute()); save(); },
     get nudge() { return JSON.parse(JSON.stringify(nudge)); }, live: function (k) { return liveOf(k); }, get pending() { return !!pend || stalled; }, get bridge() { return el ? { paused: el.paused, direct: direct } : null; }, snapshot: snapshot,
     get playing() { return playing; }, get now() { return cur; }, get tracks() { return tracks.length; },
     level: function () { if (!meter) return 0; var a = new Float32Array(meter.fftSize); meter.getFloatTimeDomainData(a); var q = 0; for (var i = 0; i < a.length; i++) q += a[i] * a[i]; return Math.sqrt(q / a.length); },
-    get graph() { return ctx ? { state: ctx.state, tracks: tracks.length, busGain: bus.gain.value, master: master.gain.value } : null; } };
+    get graph() { return ctx ? { state: ctx.state, tracks: tracks.length, busGain: bus.gain.value, master: master.gain.value, duck: duckG ? duckG.gain.value : null } : null; } };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 })();

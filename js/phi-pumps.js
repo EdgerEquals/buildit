@@ -45,6 +45,7 @@
     if (m) b1 = m.p * 864e2 * Math.pow(PHI, -18) * Math.pow(m.sw, m.c / 2);   // days -> seconds is a unit change only
     var gap = r && (r.usual || r.gap), w = gap && r.sessions > 1 ? 1 - Math.pow(PHI, -(r.sessions - 1)) : 0;
     var b = b1 && gap ? Math.pow(b1, 1 - w) * Math.pow(gap, w) : (b1 || gap || lastB);
+    if (b1 && b) { var n = r && isFinite(r.mirror) ? r.mirror : 0; b = Math.min(b1 * Math.pow(PHI, n), Math.max(b1 * Math.pow(PHI, -n), b)); }   // Rule phi 14:27: mirror the kid only within sky-B x PHI^+-n (Dial 2's ceiling rung)
     if (!b) return null;   // neither pump is running: callers keep their own page ladder
     lastB = b; return b;
   }

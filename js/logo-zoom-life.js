@@ -59,7 +59,7 @@
     if (!st || !st.ac || !st.out) return; var me = st;
     function go() { if (me !== st || me.snd || !window.LogoSound) return; try { me.snd = LogoSound.create(me.ac, me.out, { logo: me.id, events: { 'star-drop': Math.pow(PHI, -3), shimmer: Math.pow(PHI, -3) } }); } catch (e) {} }
     if (window.LogoSound) return go();
-    var sc = document.createElement('script'); sc.src = 'js/logo-sound.js?v=2'; sc.async = true; sc.onload = go; document.head.appendChild(sc);
+    var sc = document.createElement('script'); sc.src = 'js/logo-sound.js?v=3'; sc.async = true; sc.onload = go; document.head.appendChild(sc);
   }
   function shimmer() {
     if (!st || !st.sheen) return; snd('shimmer'); var dur = T(-1);
