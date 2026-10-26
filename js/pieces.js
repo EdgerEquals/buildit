@@ -175,7 +175,7 @@
   function moreBtn(btn) { if (!window.Resume || !btn) return; Resume.button(btn, 'more', 'More about each piece', async function () { var m = MODE; use('more'); S = ST.more = fresh(); use(m); }, 'Continue: more about each piece'); }
   function advance() { S.i = nextI(S.i + 1); S.stage = 'params'; S.qi = 0; save(); if (S.i >= LIST.length) renderDone(); else renderParams(); window.scrollTo(0, 0); }
   function show(on) { if (!on) undrop();
-    ['q-start', 'q-quiz', 'q-break', 'q-done'].forEach(function (p) { if (on) $(p).hidden = true; }); $('pz').hidden = !on; if (!on) $('q-start').hidden = false; window.scrollTo(0, 0); }
+    ['q-start', 'q-quiz', 'q-break', 'q-done'].forEach(function (p) { if (on) $(p).hidden = true; }); $('pz').hidden = !on; if (!on) $('q-start').hidden = false; window.scrollTo(0, 0); if (!on && window.Fit) Fit.home(); }
 
   function prog(i) { var h = '<div class="pz-prog" aria-hidden="true">'; for (var k = 0; k < LIST.length; k++) h += '<i class="' + (k < i ? 'done' : k === i ? 'now' : '') + '"></i>'; return h + '</div>'; }
   function head(pc, i, sub) { return '<p class="phase">' + (MODE === 'more' ? 'Build more · ' : '') + 'Piece ' + (i + 1) + ' of ' + LIST.length + ' · ' + sub + '</p>' + prog(i) + '<div class="pz-head"><span style="font-size:1.6rem" aria-hidden="true">' + pc.icon + '</span><h2>' + esc(pc.name) + '</h2></div>'; }
@@ -186,8 +186,10 @@
   function undrop() { if (window.QuizOrb && QuizOrb.release) QuizOrb.release(); }
   function renderParams() {
     var pc = LIST[S.i], el = $('pz'), a = S.ans[pc.id] = S.ans[pc.id] || {};
-    el.innerHTML = head(pc, S.i, 'which way should it go?') + '<div class="pz-demo" id="pz-demo"></div><p class="pz-lead">' + esc(pc.lead) + '</p>' +
-      (MODE === 'more' && !ps(pc).length ? '<p class="pz-lead">The parts of this piece are all picked. Next is its Arduino challenge.</p>' : '<p class="pz-lead"><b>For each part: which way do you love most, and which is not really you?</b> Roll each box until it feels right, then Lock it in (or press Enter). Leave a part alone and it stays as it is. Nothing changes straight away: your picks go to ' + esc(BI.host()) + ', who says yes or no.</p>') + '<ul class="pz-params" id="pz-params"></ul>' +
+    // fit (Danny 17:4x AWST 26 Oct, 'choices moved above the demo'): the choice rows come first, so the first row is on the first screen
+    // of the smallest phone; the demo, the description and the how-to follow under them.
+    el.innerHTML = head(pc, S.i, 'which way should it go?') + '<ul class="pz-params" id="pz-params"></ul><div class="pz-demo" id="pz-demo"></div><p class="pz-lead">' + esc(pc.lead) + '</p>' +
+      (MODE === 'more' && !ps(pc).length ? '<p class="pz-lead">The parts of this piece are all picked. Next is its Arduino challenge.</p>' : '<p class="pz-lead"><b>For each part: which way do you love most, and which is not really you?</b> Roll each box until it feels right, then Lock it in (or press Enter). Leave a part alone and it stays as it is. Nothing changes straight away: your picks go to ' + esc(BI.host()) + ', who says yes or no.</p>') + '' +
       '<label class="sr" for="pz-note">Anything else about this piece?</label><textarea id="pz-note" class="pz-note" rows="2" maxlength="400" placeholder="Anything else about this piece? (optional)"></textarea>' +
       '<div class="btnrow"><button type="button" class="btn bk" id="pz-back">&larr; Back</button>' + (MODE === 'first' ? '<button type="button" class="btn skip" id="pz-skip">Skip this piece</button>' : '') + '<button type="button" class="btn" id="pz-next">' + (qs(pc).length ? 'Arduino challenge &rarr;' : 'Done with this piece &rarr;') + '</button></div>';
     var d = $('pz-demo'), dh = pc.demo(d); if (dh) d.innerHTML = dh;

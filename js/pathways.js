@@ -160,7 +160,7 @@
     '.pz-ch .pw-lock{margin-top:8px;border-radius:999px;padding:7px 16px;font-size:.9rem;background:var(--ac);color:var(--bg);border-color:var(--ac);font-weight:700}.pz-ch .pw-lock[aria-pressed=true]{background:var(--ok);color:var(--bg);border-color:var(--ok)}' +
     '.pz-ch .pw-roll{margin-top:0;align-self:flex-start;padding:6px 12px;font-size:.88rem;border-radius:999px}.pw-was{margin:4px 0 0;font-size:.82rem;color:var(--mu)}' +
     '.pw-own{display:flex;align-items:center;gap:8px;font-size:.85rem;color:var(--mu);margin-top:4px}.pw-own input[type=text]{flex:1;min-width:0}' +
-    '@media (max-width:360px){.pw-row{grid-template-columns:1fr}}';
+    '';   // fit: the two ways stay side by side on the narrowest phones too (Danny 17:4x: first row of choices on the first screen at 320 wide)
   document.head.appendChild(s);
   window.Pathways = { pair: pair, count: count, all: all, render: render, label: label, steps: STEP.slice() };
 })();

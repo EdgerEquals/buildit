@@ -350,3 +350,17 @@ html.lite *{animation-play-state:paused!important}
 :root{--bg:#1F0B33;--sf:#1A3A73;--ln:#7693C1;--led:#7FB2D1;--tide:#3F719A;--pk-orbit-speed:-1;--pk-orbit-size:1;--pk-orbit-fade:1;--pk-orbit-bright:-1;--pk-light-idle:-1.618;--pk-light-new:-1;--pk-light-urgent:-1;--pk-light-range:1;--pk-tide-flow:-1;--pk-dj-bpm:0.618;--pk-dj-fade:1;--pk-dj-track:-0.618;--pk-rhythm-step:1;--pk-rhythm-dial:0.618;--pk-bot-breathe:-0.382;--pk-bot-breathe-size:1;--pk-bot-blink:-1;--pk-bot-wobble:1;--pk-bot-wobble-size:1;--pk-bot-shine:1;--pk-bot-hop-size:1;--pkc-bot:#071330;--pk-orbit-which:"🤖 ⚙️ 🔋";--pk-orbit-dir:same;--own-step:-0.75}
 @supports not (width:calc(pow(2,1)*1px)){:root{--k:0.697043;--ph-4:0.1017s;--ph-3:0.1645s;--ph-2:0.2662s;--ph-1:0.4308s;--ph0:0.697s;--ph1:1.128s;--ph2:1.825s;--ph3:2.953s;--ph4:4.778s;--ph5:7.73s;--ph6:12.51s;--ph7:20.24s;--ph8:32.75s;--ph9:52.98s}}
 /* PICKS:END */
+/* FIT, landscape two columns (js/fit.js adds html.fit-2col only when the first row would not fit a wide, short space).
+   Main screen: greeting and lead on the left, the step and Start on the right (1 : 1). Picks: the part's name on the left, its choices
+   on the right (1 : PHI^3). Not while the call-me box is open (it keeps the single column). */
+html.fit-2col #q-start:not(:has(.cm)){display:grid;grid-template-columns:minmax(0,1.618fr) minmax(0,1fr);grid-template-rows:auto auto 1fr;column-gap:1rem;align-items:start}
+html.fit-2col #q-start:not(:has(.cm))>.leadrow{grid-column:1;grid-row:1}html.fit-2col #q-start:not(:has(.cm))>#q-lead{grid-column:1;grid-row:2 / span 2}
+html.fit-2col #q-start:not(:has(.cm))>ol.parts{grid-column:2;grid-row:1;margin-top:0}html.fit-2col #q-start:not(:has(.cm))>ol.parts+.btnrow{grid-column:2;grid-row:2;margin-top:0}
+html.fit-2col #q-start:not(:has(.cm))>*:not(.leadrow):not(#q-lead):not(ol.parts):not(ol.parts+.btnrow){grid-column:1 / -1}
+html.fit-2col .pz-p{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,4.236fr);column-gap:1rem;align-content:start}
+html.fit-2col .pz-p>*{grid-column:1}html.fit-2col .pz-p>.pz-ch{grid-column:2;grid-row:1 / span 9;margin-top:0}
+/* FIT, tight (js/fit.js adds html.fit-tight when the first row still does not fit after the steps): in each part, its choices come
+   straight after its name, and the value and hint follow under them (nothing hidden, reader text unchanged). */
+html.fit-tight:not(.fit-2col) .pz-p{display:flex;flex-direction:column}html.fit-tight:not(.fit-2col) .pz-p>.pl{order:-2}html.fit-tight:not(.fit-2col) .pz-p>.pz-ch{order:-1;margin:.382em 0}
+html.fit-tight:not(.fit-2col) .pz-card{padding:.618rem}html.fit-tight:not(.fit-2col) .pz-head{margin:.146rem 0 .236rem}html.fit-tight:not(.fit-2col) .pz-prog{margin:.146rem 0}
+html.fit-tight:not(.fit-2col) .pz-p{padding:.382rem .618rem}   /* tight: the card's own spacing one to two phi steps smaller (rem ratios, reader text unchanged) */
