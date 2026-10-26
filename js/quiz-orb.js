@@ -1,4 +1,4 @@
-/* QuizOrb: ONE quiz orb for the page, built on the help orb architecture (Rebella js/help-orb.js): a single instance
+/* QuizOrb: ONE quiz orb for the page, built on the Kids Club reference help orb architecture: a single instance
    made by init(), a fixed home dock bottom-right with safe-area insets that lifts above the footer (avoid()), one dialog
    with a focus trap, Escape and focus returned to where it came from, and a spring back home.
    What is new here: when a "name this" question is asked the orb grows and travels to the centre of the screen, shows
@@ -37,8 +37,17 @@
     s.textContent =
       '.qorb{position:fixed;right:calc(14px + env(safe-area-inset-right,0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:40;width:48px;height:48px;border-radius:50%;padding:0;border:2px solid rgba(227,236,250,.75);' +
       'background:radial-gradient(circle at 34% 28%,#5A7DB5,#0B1F4D 58%,#050D1F);color:#fff;font:700 1.35rem/1 system-ui,sans-serif;box-shadow:0 2px 12px rgba(0,0,0,.45);cursor:pointer;transform-origin:50% 50%;will-change:transform;-webkit-tap-highlight-color:transparent}' +
-      '.qorb i{display:block;font-style:normal;animation:qorbB var(--ph3,4.78s) ease-in-out infinite alternate}' +
-      '@keyframes qorbB{from{transform:scale(1)}to{transform:scale(1.09)}}' +
+      '.qorb i{display:block;font-style:normal}' +
+      // ALWAYS GENTLY ALIVE (Kids Club help-orb standard, Danny 14:47 AWST; the Kids Club reference help orb: a whole-orb breath
+      // plus a soft halo). Period = breath B (js/phi-pumps.js, --qb), golden-angle start; size 1 + PHI^-6, halo to PHI^-1. Only at
+      // rest: it calms while dragged, open or asking. Uses scale + opacity only (no transform clash with the spring). Off in Lite / reduced motion.
+      '.qorb::after{content:"";position:absolute;inset:-3px;border-radius:50%;box-shadow:0 0 12px 4px rgba(227,236,250,.5);opacity:0;pointer-events:none}' +
+      '.qorb.rest{animation:qorbA var(--qb,var(--ph4,7.73s)) ease-in-out var(--qbd,0s) infinite}.qorb.rest::after{animation:qorbH var(--qb,var(--ph4,7.73s)) ease-in-out var(--qbd,0s) infinite}' +
+      '@keyframes qorbA{0%,100%{scale:1}50%{scale:1.0557}}@keyframes qorbH{0%,100%{opacity:0}50%{opacity:.618}}' +
+      'html.lite .qorb.rest,html.lite .qorb.rest::after{animation:none}@media (prefers-reduced-motion:reduce){.qorb.rest,.qorb.rest::after{animation:none}}' +
+      '.qorb[aria-pressed=true]{box-shadow:0 0 0 3px #E3ECFA,0 2px 12px rgba(0,0,0,.45)}' +
+      '.qorb-tip{position:fixed;z-index:42;max-width:min(260px,calc(100vw - 24px));background:#102447;color:#fff;border:2px solid #9FB8E0;border-radius:14px;padding:9px 12px;font-size:.9rem;line-height:1.4;box-shadow:0 10px 30px rgba(0,0,0,.5)}' +
+      '.qorb-tip .r{display:flex;gap:8px;justify-content:flex-end;margin-top:8px}.qorb-tip button{border:1px solid #9FB8E0;background:transparent;color:#fff;border-radius:999px;padding:5px 12px;min-height:36px;font-weight:700}.qorb-tip button.go{background:#9FB8E0;color:#0B1A33}' +
       '.qorb:focus-visible{outline:3px solid #E3ECFA;outline-offset:3px}' +
       '.qorb-scrim{position:fixed;inset:0;z-index:38;background:#050D1F;opacity:0;pointer-events:none}' +
       '.qorb-pan{position:fixed;left:50%;top:50%;z-index:39;width:min(560px,calc(100vw - 24px));max-height:calc(100vh - 120px);overflow:auto;box-sizing:border-box;background:#102447;color:#fff;border:2px solid #9FB8E0;border-radius:18px;' +
@@ -99,7 +108,7 @@
     if (st.t === 0) { st.pan.hidden = true; st.scrim.style.pointerEvents = 'none'; }
   }
   function go(target) {
-    st.t = target;
+    st.t = target; if (target === 1) { untip(); if (st.seek) seek(false); } rest(target === 0); if (target === 0) { breath(); setTimeout(nudge, Math.pow(PHI, 1 + OWN) * 1000); }
     if (target === 1) { st.pan.hidden = false; st.scrim.style.pointerEvents = 'auto'; }
     geo(); st.pan.style.pointerEvents = target === 1 ? 'auto' : 'none';
     if (!st.raf) { st.ts = 0; st.raf = requestAnimationFrame(loop); }
@@ -212,6 +221,37 @@
     if (tag === 'SUMMARY') return 'Tap this to open or close ' + (name ? '“' + name + '”' : 'this part') + '.';
     return name ? 'The “' + name + '” button. Tap it to use it.' : 'A button. This one is still being tuned.';
   }
+  function breath() {   // breath B from the pump root when it runs; the page ladder until then
+    if (!st) return; var b = null; try { b = window.PhiPumps && PhiPumps.B ? PhiPumps.B() : null; } catch (e) {}
+    if (b && isFinite(b)) { st.orb.style.setProperty('--qb', b.toFixed(3) + 's'); st.orb.style.setProperty('--qbd', (-b * (1 / PHI)).toFixed(3) + 's'); }
+  }
+  function rest(on) { if (st) st.orb.classList.toggle('rest', !!on && st.t === 0 && !st.seek); }
+  // TAP THEN CONTROL (same standard): tap the orb, then tap anything: it gets the same drop (grow + help bubble) as a drag
+  function tip(text, buttons) {
+    untip(); var t = el('div', 'qorb-tip'); t.setAttribute('role', 'status'); t.appendChild(el('span', null, text));
+    var r = el('div', 'r'); buttons.forEach(function (b) { var x = el('button', b[2] ? 'go' : null, b[0]); x.type = 'button'; x.onclick = function (e) { e.stopPropagation(); b[1](); }; r.appendChild(x); });
+    t.appendChild(r); (document.getElementById('screen-app') || document.body).appendChild(t); st.tip = t;
+    var o = st.orb.getBoundingClientRect(), pad = st.orb.offsetWidth / (PHI * PHI);
+    t.style.right = Math.max(pad, innerWidth - o.right) + 'px'; t.style.bottom = (innerHeight - o.top + pad) + 'px';
+  }
+  function untip() { if (st && st.tip) { st.tip.remove(); st.tip = null; } }
+  function seek(on) {
+    if (!st) return; st.seek = !!on; st.orb.setAttribute('aria-pressed', on ? 'true' : 'false'); rest(!on);
+    if (on) tip('Now tap anything, and I’ll tell you what it is.', [['Change my look', function () { seek(false); open(helpBody); }], ['Cancel', function () { seek(false); }, 1]]); else untip();
+  }
+  document.addEventListener('click', function (e) {
+    if (!st || !st.seek || st.orb.contains(e.target) || (st.tip && st.tip.contains(e.target))) return;
+    e.preventDefault(); e.stopPropagation(); seek(false); nudged();
+    var hit = partOf(e.target); if (hit && hit.el === e.target) drop(hit.el); else drop(e.target, {});
+  }, true);
+  // ONE-TIME NUDGE on the first screen (same standard), once per device
+  var K_NUDGE = 'buildit.orbnudge';
+  function nudged() { try { localStorage.setItem(K_NUDGE, '1'); } catch (e) {} if (st && st.tip && st.tip.classList.contains('nudge')) untip(); }
+  function nudge() {
+    try { if (localStorage.getItem(K_NUDGE)) return; } catch (e) { return; }
+    if (!st || st.t !== 0 || st.seek || st.tip) return;
+    tip('Drag me onto anything to ask what it does. Or tap me, then tap it.', [['Got it', nudged, 1]]); st.tip.classList.add('nudge');
+  }
   function init() {
     if (st) return window.QuizOrb;
     css();
@@ -222,12 +262,14 @@
     st.pan = el('div', 'qorb-pan'); st.pan.hidden = true; st.pan.setAttribute('role', 'dialog'); st.pan.setAttribute('aria-modal', 'true');
     st.orb = el('button', 'qorb'); st.orb.type = 'button'; st.orb.id = 'quiz-orb'; st.orb.innerHTML = '<i aria-hidden="true">?</i>';
     paintLook(); BASE_HELP.forEach(function (h) { if (!PARTS.some(function (pp) { return pp.sel === h[0]; })) part(h[0], h[1], h[2]); });
-    st.orb.onclick = function () { if (st.dragged && Date.now() - st.dragged < Math.pow(PHI, -1 + OWN) * 1000) return; if (st.t === 1) { if (!locked()) home(); return; } if (st.spec && st.spec.picked == null) ask(st.spec); else if (window.Learner && !Learner.introSeen()) intro(); else open(helpBody); };
+    st.orb.onclick = function () { if (st.dragged && Date.now() - st.dragged < Math.pow(PHI, -1 + OWN) * 1000) return; if (st.t === 1) { if (!locked()) home(); return; } nudged(); if (st.seek) { seek(false); return; } if (st.spec && st.spec.picked == null) ask(st.spec); else if (window.Learner && !Learner.introSeen()) intro(); else seek(true); };
     host.appendChild(st.scrim); host.appendChild(st.ring); host.appendChild(st.pan); host.appendChild(st.orb);
     document.addEventListener('keydown', keys, true); dragInit();
     addEventListener('resize', function () { avoid(); place(); if (st.t === 1) { geo(); draw(); } });
     addEventListener('scroll', function () { avoid(); place(); }, { passive: true }); avoid();
     if (window.ResizeObserver) new ResizeObserver(function () { avoid(); }).observe(document.body);   // page content changed height
+    breath(); rest(true); document.addEventListener('visibilitychange', function () { if (!document.hidden) breath(); });
+    setTimeout(function () { breath(); nudge(); }, Math.pow(PHI, 2 + OWN) * 1000);   // after the first screen has settled (and the pump root has loaded)
     return window.QuizOrb;
   }
   function reset() { if (!st) return; release(); st.hold = false; st.spec = null; st.t = 0; st.p = 0; st.v = 0; if (st.raf) cancelAnimationFrame(st.raf); st.raf = 0; st.pan.hidden = true; st.scrim.style.pointerEvents = 'none'; st.g = st.g || null; if (st.g) draw(); }
@@ -302,14 +344,14 @@
     o.addEventListener('pointerdown', function (e) { if (st.t !== 0 || st.hold || e.button) return; d = { x: e.clientX, y: e.clientY, on: false, id: e.pointerId }; });
     addEventListener('pointermove', function (e) {
       if (!d || e.pointerId !== d.id) return; var dx = e.clientX - d.x, dy = e.clientY - d.y;
-      if (!d.on && Math.hypot(dx, dy) > o.offsetWidth / (PHI * PHI)) { d.on = true; try { o.setPointerCapture(d.id); } catch (er) {} o.style.transition = 'none'; }
+      if (!d.on && Math.hypot(dx, dy) > o.offsetWidth / (PHI * PHI)) { d.on = true; rest(false); nudged(); if (st.seek) seek(false); try { o.setPointerCapture(d.id); } catch (er) {} o.style.transition = 'none'; }
       if (d.on) { e.preventDefault(); o.style.transform = 'translate(' + dx.toFixed(0) + 'px,' + dy.toFixed(0) + 'px) scale(' + (1 + Math.pow(PHI, -3)).toFixed(3) + ')'; }
     }, { passive: false });
     addEventListener('pointerup', function (e) {
       if (!d || e.pointerId !== d.id) return; var was = d.on; d = null; if (!was) return;
       st.dragged = Date.now(); o.style.pointerEvents = 'none'; var under = document.elementFromPoint(e.clientX, e.clientY); o.style.pointerEvents = '';
       o.style.transition = 'transform var(--ph-1,.7s) cubic-bezier(.2,.9,.3,1.2)'; o.style.transform = '';   // springs home
-      setTimeout(function () { o.style.transition = ''; }, Math.pow(PHI, -1 + OWN) * 1000);
+      setTimeout(function () { o.style.transition = ''; rest(true); }, Math.pow(PHI, -1 + OWN) * 1000);
       var hit = under && partOf(under); if (hit) drop(hit.el); else if (under && under !== document.body && under.id !== 'screen-app') drop(under, {});
     });
   }

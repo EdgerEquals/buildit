@@ -81,7 +81,7 @@
     // chat poll + live line, orbit emojis, the ratio pump; tier 3: DJ engine + zoom mark prefetch. DJ itself loads on tap.
     // the learner model and the quiz orb load with the questions (tier 1), in order: model, orb, then the questions
     // rhythms keep going while away (js/rhythm.js): first, so everything after it can register; nothing before the password
-    if (!window.Pieces) { ['js/rhythm.js?v=1', 'js/callme.js?v=1', 'js/learner.js?v=3', 'js/quiz-orb.js?v=5', 'js/onboard.js?v=4', 'js/pathways.js?v=4', 'js/pieces.js?v=8'].forEach((u) => { const sp = document.createElement('script'); sp.src = u; sp.async = false; document.head.appendChild(sp); }); }
+    if (!window.Pieces) { ['js/rhythm.js?v=1', 'js/callme.js?v=1', 'js/learner.js?v=3', 'js/quiz-orb.js?v=6', 'js/onboard.js?v=4', 'js/pathways.js?v=4', 'js/pieces.js?v=8'].forEach((u) => { const sp = document.createElement('script'); sp.src = u; sp.async = false; document.head.appendChild(sp); }); }
     else document.dispatchEvent(new CustomEvent('bi:open'));
     Tiers.add(2, startChat, 'chat', false);
     // golden-ratio dials (Kids Club core standard): tier 1, after unlock; nothing before the password
