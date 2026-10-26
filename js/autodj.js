@@ -105,7 +105,7 @@
   function bridge() {
     if (!ctx.createMediaStreamDestination || !window.HTMLAudioElement) return;
     try { var msd = ctx.createMediaStreamDestination(); out.connect(msd); el = document.createElement('audio'); el.setAttribute('playsinline', ''); el.srcObject = msd.stream;
-      el.addEventListener('pause', function () { if (!direct) { try { out.connect(ctx.destination); } catch (e) {} direct = true; } }); } catch (e) { el = null; }
+      el.addEventListener('pause', function () { if (!direct) { try { out.connect(ctx.destination); } catch (e) {} direct = true; } if (playing) later('bridge-pause'); }); } catch (e) { el = null; }
   }
   function elPlay() {                                                     // once the element is really playing, it is the only path out
     if (!el) return; var p; try { p = el.play(); } catch (e) { return; }
@@ -136,6 +136,7 @@
       conv.buffer = ir; revIn = ctx.createGain(); revIn.gain.value = 0.35; revIn.connect(conv); conv.connect(bus);
       duckG = ctx.createGain(); duckG.gain.value = ducked ? DIP() : 1;   // the logo dip (Loudness standard, 14:26): its own node, so the pump volume never fights it
       bus.connect(duckG); duckG.connect(master); master.connect(comp); comp.connect(ctx.destination); out = comp; bridge();
+      ctx.addEventListener('statechange', function () { if (!playing) return; if (ctx.state === 'running') { if (RS.down) attempt('state'); } else later('state'); });   // another app took the sound
       meter = ctx.createAnalyser(); meter.fftSize = 2048; comp.connect(meter);              // level check for tests only
       var n = ctx.sampleRate, b = ctx.createBuffer(1, n, n), nd = b.getChannelData(0); for (var j = 0; j < n; j++) nd[j] = Math.random() * 2 - 1; noise = b;
     } catch (e) { ctx = null; }
@@ -303,20 +304,47 @@
     tracks.forEach(function (tr) { if (tr.dead || tr.leaving) return; var want = stepsIn((Date.now() - tr.born) / MS, tr.bpm);
       if ((want - tr.step) * SPM / tr.bpm / SPB > PHI) { tr.step = want; tr.next = ctx.currentTime + Math.pow(PHI, -4); } });   // phi: only past a PHI s gap
   }
-  function wake() {                                                       // visibilitychange / pageshow: resume what was playing
-    if (!playing || !ctx) return;
-    var p = null; try { p = ctx.resume && ctx.resume(); } catch (e) {}
-    elPlay(); jump(); tick();
-    var check = function () { if (playing && ctx.state !== 'running') { stalled = true; arm(); paint(compute()); } };
-    if (p && p.then) p.then(check, check); else check();
+  // ---------- SOUND COMES BACK after another app borrows it (Kids Club, Danny 15:51 + 16:16 AWST 26 Oct; guard 17:31; S-0017 unlock) ----------
+  // Triggers: the context leaving 'running', the <audio> bridge pausing, the page coming back (visible, pageshow, focus). Each waits one
+  // tap-rung beat (B x PHI^-10, B from js/phi-pumps.js), then tries; the ladder retries at beat x PHI^0 .. PHI^5 (repeating at PHI^5) until the
+  // context runs AND the bridge plays, catching the rhythm up to now (jump + tick). Refused: one gentle 'tap to bring the sound back' button.
+  // Gestures: every try calls resume() and play() first, before anything async. Unlock on finger lift (pointerup / touchend) for touch,
+  // pointerdown for a mouse, keydown for keys; and (guard 17:31) the touch PRESS is a try too, because a scrolling touch ends in
+  // touchcancel / pointercancel with no lift. Only while the DJ is on: his own pause is never undone.
+  var RS = { down: false, k: 0, t: 0, wait: 0, ui: null };
+  function TAP() { var B = window.PhiPumps && PhiPumps.B ? +PhiPumps.B() : 0; return (B > 0 ? B : Math.pow(PHI, 5)) * Math.pow(PHI, -10); }   // phi: tap-rung beat
+  function elOn() { return !el || (!el.paused && !el.ended); }
+  function okNow() { return !!ctx && ctx.state === 'running' && elOn(); }
+  function tryNow() { try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {} var p = null; try { p = ctx.resume(); } catch (e) {} elPlay(); return p; }
+  function settle() { stalled = false; jump(); tick(); session('playing'); paint(compute()); if (okNow()) { clearTimeout(RS.t); RS.t = 0; RS.down = false; RS.k = 0; hideBack(); disarm(); } }
+  function drop() { clearTimeout(RS.t); clearTimeout(RS.wait); RS.t = RS.wait = 0; RS.down = false; RS.k = 0; hideBack(); }
+  function attempt() {
+    if (!playing || !ctx) { drop(); return; }
+    if (okNow()) { if (RS.down || stalled) settle(); return; }
+    RS.down = true; var p = tryNow();
+    var after = function () { if (ctx.state === 'running') { settle(); if (okNow()) return; } else { stalled = true; arm(); paint(compute()); if (!document.hidden) showBack(); } ladder(); };
+    if (p && p.then) p.then(after, after); else setTimeout(after, 0);
   }
+  function ladder() { if (RS.t || !RS.down) return; var k = Math.min(RS.k, 5); RS.k++; RS.t = setTimeout(function () { RS.t = 0; attempt(); }, TAP() * Math.pow(PHI, k) * MS); }   // phi: beat x PHI^0..5
+  function later() { if (RS.wait || !playing || !ctx) return; RS.wait = setTimeout(function () { RS.wait = 0; attempt(); }, TAP() * MS); }   // one tap-rung beat first
+  function showBack() {                                                    // the one gentle button, just under the header (measured)
+    if (RS.ui) return; var b = document.createElement('button'), top = 0;
+    ['head', 'q-hello'].forEach(function (id) { var n = $(id), r = n && n.getClientRects().length ? n.getBoundingClientRect() : null;   // under the header AND under the greeting when it is on screen
+      if (r && r.height && r.bottom > 0 && r.bottom < innerHeight / PHI) top = Math.max(top, r.bottom); });
+    b.type = 'button'; b.className = 'btn sound-back'; b.textContent = '\uD83D\uDD0A tap to bring the sound back';
+    b.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);top:calc(' + Math.max(0, Math.round(top)) + 'px + .618rem);z-index:45;max-width:calc(100vw - 2rem);min-height:44px';   // unit: 44 px tap target (Apple HIG)
+    b.addEventListener('click', function (e) { e.stopPropagation(); resumeTap(); }); document.body.appendChild(b); RS.ui = b;
+  }
+  function hideBack() { if (RS.ui) { try { RS.ui.remove(); } catch (e) {} RS.ui = null; } }
+  function wake() { if (playing && ctx) later(); }                         // visibilitychange / pageshow / focus: after one tap-rung beat
   function resumeTap() {
-    disarm(); if (!masterOn()) { var sw = soundSwitch(); if (sw) sw.click(); }
-    if (stalled && playing && ctx) { stalled = false; try { ctx.resume(); } catch (e) {} elPlay(); jump(); tick(); session('playing'); paint(compute()); return; }
-    if (pend) start(pend);
+    if (ctx && playing) tryNow();                                          // inside the gesture, before anything else
+    if (!masterOn()) { var sw = soundSwitch(); if (sw) sw.click(); }
+    if ((stalled || RS.down) && playing && ctx) { attempt(); return; }
+    disarm(); if (pend) start(pend);
   }
-  var armed = false, GEST = ['touchend', 'click', 'keydown'];
-  function onGesture(e) { if (btn && btn.contains(e.target)) return; if (pend || stalled) resumeTap(); else disarm(); }
+  var armed = false, GEST = ['pointerdown', 'pointerup', 'pointercancel', 'touchstart', 'touchend', 'touchcancel', 'click', 'keydown'];
+  function onGesture(e) { if (btn && btn.contains(e.target)) return; if (pend || stalled || RS.down) resumeTap(); else disarm(); }
   function arm() { if (armed) return; armed = true; GEST.forEach(function (n) { document.addEventListener(n, onGesture, true); }); }
   function disarm() { if (!armed) return; armed = false; GEST.forEach(function (n) { document.removeEventListener(n, onGesture, true); }); }
   // register with js/rhythm.js (save cadence, lifecycle hooks, catch-up and the daily restart live there)
@@ -411,7 +439,7 @@
     if (slot) new MutationObserver(function () { if (playing && !masterOn()) stop(); }).observe(slot, { attributes: true, subtree: true, attributeFilter: ['aria-pressed'] });
     // hidden: keep playing if the DJ is on (Media Session + <audio> bridge keep it alive), otherwise rest the context
     document.addEventListener('visibilitychange', function () { if (!ctx) return; if (document.hidden) { if (!playing) try { ctx.suspend(); } catch (e) {} } else wake(); });
-    window.addEventListener('pageshow', function () { wake(); });
+    window.addEventListener('pageshow', function () { wake(); }); window.addEventListener('focus', function () { wake(); });
     document.addEventListener('simwx', function () { if (!playing) { cur = compute(); paint(cur); } });
     if (window.RhythmContinuity) RC = RhythmContinuity.register('dj', { save: snapshot, catchUp: catchUp, reset: reset });
     buildChips(); cur = compute(); paint(cur); schedule(cur.fade);

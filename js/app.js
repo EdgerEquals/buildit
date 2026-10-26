@@ -101,8 +101,8 @@
     if (Tiers.script && !window.PicksCheck) Tiers.script('js/picks-check.js?v=1', 2, null, 'pickscheck', false);
     if (Tiers.script) { Tiers.script('js/orbit.js?v=3', 2, null, 'orbit'); Tiers.script('js/ratio-pump.js?v=1', 2, { 'data-site': 'buildit', 'data-freq': (0.75 * Math.pow(1.6180339887, parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--pk-rhythm-dial')) || 0)).toFixed(3) }, 'pump', false); }
     // the DJ was on before a reload or a phone tab discard: load it in an idle slot so it shows 'tap to resume' (sound still needs one tap)
-    Tiers.add(2, () => { const s = window.RhythmContinuity && RhythmContinuity.peek('dj'); if (s && s.on && !djLoaded) { djLoaded = true; $('dj-pill').classList.add('on'); const sc = document.createElement('script'); sc.src = 'js/autodj.js?v=5'; sc.async = true; document.head.appendChild(sc); } }, 'dj resume');
-    Tiers.add(3, () => { const l = document.createElement('link'); l.rel = 'prefetch'; l.href = 'js/autodj.js?v=5'; document.head.appendChild(l); }, 'prefetch autodj');
+    Tiers.add(2, () => { const s = window.RhythmContinuity && RhythmContinuity.peek('dj'); if (s && s.on && !djLoaded) { djLoaded = true; $('dj-pill').classList.add('on'); const sc = document.createElement('script'); sc.src = 'js/autodj.js?v=6'; sc.async = true; document.head.appendChild(sc); } }, 'dj resume');
+    Tiers.add(3, () => { const l = document.createElement('link'); l.rel = 'prefetch'; l.href = 'js/autodj.js?v=6'; document.head.appendChild(l); }, 'prefetch autodj');
     Tiers.prefetch('img/mark-head.svg?v=1');   // tier 3: an extra-questions preview
   }
   function setBotName() { document.querySelectorAll('.botav').forEach((im) => { if (im.id === 'h-av') { im.alt = BOT(); im.title = BOT(); } }); }
@@ -132,7 +132,7 @@
   $('dj-pill').onclick = () => {
     const pop = $('dj-pop'), open = pop.hidden; pop.hidden = !open; $('dj-pill').setAttribute('aria-expanded', String(open));
     if (open && window.Adapt) Adapt.note('dj', 'open');
-    if (open && !djLoaded) { djLoaded = true; const sc = document.createElement('script'); sc.src = 'js/autodj.js?v=5'; sc.async = true; document.head.appendChild(sc); }
+    if (open && !djLoaded) { djLoaded = true; const sc = document.createElement('script'); sc.src = 'js/autodj.js?v=6'; sc.async = true; document.head.appendChild(sc); }
   };
   new MutationObserver(() => $('dj-pill').classList.toggle('on', $('dj-play').getAttribute('aria-pressed') === 'true')).observe($('dj-play'), { attributes: true, attributeFilter: ['aria-pressed'] });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('dj-pop').hidden) { $('dj-pop').hidden = true; $('dj-pill').setAttribute('aria-expanded', 'false'); $('dj-pill').focus(); } });
