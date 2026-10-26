@@ -61,7 +61,9 @@
   }
 
   // ================= app shell =================
-  const NAME = () => (cfg && cfg.name) || 'there';
+  // the call-me word he picked (js/callme.js, this device only) comes first; blank = the old greeting. Never sent anywhere.
+  const CALLME = () => { try { const r = JSON.parse(localStorage.getItem('buildit.callme') || 'null'); return r && typeof r.t === 'string' ? r.t.trim() : ''; } catch (e) { return ''; } };
+  const NAME = () => CALLME() || (cfg && cfg.name) || 'there';
   const HOST = () => (cfg && cfg.host) || 'Danny';
   const BOT = () => (cfg && cfg.bot) || 'your bot';   // ONE setting: `bot` in the encrypted config (renamable by the user)
   async function openApp() {
@@ -78,7 +80,7 @@
     // tier 1: the piece-by-piece questions (most important after unlock); tier 2 (idle, PHI^-2 apart, usage-ordered):
     // chat poll + live line, orbit emojis, the ratio pump; tier 3: DJ engine + zoom mark prefetch. DJ itself loads on tap.
     // the learner model and the quiz orb load with the questions (tier 1), in order: model, orb, then the questions
-    if (!window.Pieces) { ['js/learner.js?v=3', 'js/quiz-orb.js?v=4', 'js/onboard.js?v=3', 'js/pathways.js?v=3', 'js/pieces.js?v=7'].forEach((u) => { const sp = document.createElement('script'); sp.src = u; sp.async = false; document.head.appendChild(sp); }); }
+    if (!window.Pieces) { ['js/callme.js?v=1', 'js/learner.js?v=3', 'js/quiz-orb.js?v=4', 'js/onboard.js?v=4', 'js/pathways.js?v=3', 'js/pieces.js?v=7'].forEach((u) => { const sp = document.createElement('script'); sp.src = u; sp.async = false; document.head.appendChild(sp); }); }
     else document.dispatchEvent(new CustomEvent('bi:open'));
     Tiers.add(2, startChat, 'chat', false);
     // golden-ratio dials (Kids Club core standard): tier 1, after unlock; nothing before the password

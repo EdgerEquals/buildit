@@ -225,3 +225,9 @@ All in the `REFERENCE DATA` block of `js/dials.js`. Asserted, not verified, unti
 - NASA NSSDC fact sheets: Moon perigee and apogee, Earth perihelion and aphelion.
 - Cartwright and Tayler (1971): equilibrium-tide amplitudes of M2 and S2.
 - W3C WCAG 2.1: contrast 4.5:1 for text (SC 1.4.3), 3:1 for UI borders (SC 1.4.11), relative luminance.
+
+## What would you like to be called (call-me word, Danny 2026-10-26 13:29 AWST)
+- The first step after unlock, before step 1 (naming the parts): "What would you like to be called?" with the tip "💡 Tip: we recommend not using your real name." It can be skipped ("Not now"). A kid who already did step 1 sees it once, softly, on his next visit. The logo editor's tip is the second time the tip shows.
+- js/callme.js keeps the answer on this device only (localStorage `buildit.callme`: `{v, t, seen}`). It is never sent, never put in the encrypted config or the relay, and never treated as a name. The page greets him with it ("Hey …!"); blank falls back to the old greeting. Change it any time from Build more ("What I like to be called").
+- His bot: the page does not tell the bot this word. The bot uses whatever he tells it he'd like to be called in chat (ask once, early, with the same tip), never his real name on anything public, and keeps his real name only where it already lives (the encrypted config). The encrypted config and relay/bot code are unchanged.
+- Rule 12: light (one small file, loaded after unlock with the questions); no fixed parameters (the word is his own input; the length cap is a Fibonacci count, the fade a PHI step of the page's own step, eased, none under reduced motion); private (on device only). Rollback tag: pre-callme-2026-10-26.

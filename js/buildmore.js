@@ -15,6 +15,8 @@
   var TILES = [
     // the logo step (Kids Club "Logo grows with the page"): the next item after the first build. Opening it is the hand-over (js/logo.js)
     { id: 'bm-logo', label: '\u2728 Make your logo yours', cont: '\u2728 Change your logo', rid: 'logo', run: function () { if (window.Logo) Logo.step(); }, over: null, own: function (b) { b.textContent = window.Logo && Logo.handed() ? '\u2728 Change your logo' : '\u2728 Make your logo yours'; return true; } },
+    // what he likes to be called (js/callme.js, on this device only): change it any time
+    { id: 'bm-callme', label: '\uD83D\uDE42 What I like to be called', rid: 'callme', run: function () { if (window.CallMe) CallMe.ask(); }, over: null, own: function (b) { b.textContent = '\uD83D\uDE42 What I like to be called'; return true; } },
     { id: 'bm-pieces', label: 'More about each piece', cont: 'Continue: more about each piece', rid: 'more', run: function () { Pieces.more(); }, over: null, own: function (b) { if (window.Pieces && Pieces.moreBtn) { Pieces.moreBtn(b); return true; } } },
     { id: 'bm-name', label: 'Name more: what can change', cont: 'Continue naming more', rid: 'naming-more', run: function () { Onboard.nameMore(); }, over: function () { Onboard.resetNameMore(); } },
     { id: 'bm-learn', label: 'More of what you want to learn', cont: 'Continue: what you want to learn', rid: 'learn-more', run: function () { Onboard.learnMore(); }, over: function () { Onboard.resetLearnMore(); } }

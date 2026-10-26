@@ -246,7 +246,7 @@
   // the orb's own help text for each part comes from the same naming content (one source), so any drop on it can say it
   function parts() { if (!window.QuizOrb || !QuizOrb.part) return; ITEMS.forEach(function (it) { if (it.id.indexOf('p-') !== 0) QuizOrb.part(it.sel, it.x); }); }
   // Build more (js/buildmore.js) loads on tap, or in an idle slot once step 1 is done
-  function bmLoad() { if (window.BuildMore) { BuildMore.refresh(); return; } if ($('bm-js')) return; var sp = document.createElement('script'); sp.id = 'bm-js'; sp.src = 'js/buildmore.js?v=2'; sp.async = true; document.head.appendChild(sp); }
+  function bmLoad() { if (window.BuildMore) { BuildMore.refresh(); return; } if ($('bm-js')) return; var sp = document.createElement('script'); sp.id = 'bm-js'; sp.src = 'js/buildmore.js?v=3'; sp.async = true; document.head.appendChild(sp); }
   function bmIdle() { if (!done() || window.BuildMore) return; var ric = window.requestIdleCallback || function (f) { return setTimeout(f, sec(2) * 1000); }; ric(function () { if (window.BI && BI.ready() && done()) bmLoad(); }, { timeout: sec(4) * 1000 }); }
   async function open() { if (!window.BI || !BI.ready()) return; css(); parts(); N = await nload(); gate(); var g = $('bm-go'); if (g) g.onclick = bmLoad; bmIdle(); }
   document.addEventListener('bi:open', open);
