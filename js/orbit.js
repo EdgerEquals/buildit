@@ -6,31 +6,35 @@
   'use strict';
   if (window.Orbit) return;
   var PHI = 1.6180339887, G = 0.6180339887;
-  var OWN = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--own-step')); if (!isFinite(OWN)) OWN = 0.25;
+  var CS = getComputedStyle(document.documentElement), num = function (n, d) { var v = parseFloat(CS.getPropertyValue(n)); return isFinite(v) ? v : d; };
+  var OWN = num('--own-step', 0.25);
+  // his picks (Kids Club auto-live): phi rungs from the generated PICKS block in css/style.css (0 = as built)
+  var PK = { speed: num('--pk-orbit-speed', 0), size: num('--pk-orbit-size', 0) };
+  var WHICH = CS.getPropertyValue('--pk-orbit-which').replace(/["']/g, '').trim().split(/\s+/).filter(Boolean), DIR = CS.getPropertyValue('--pk-orbit-dir').trim();
   //          emoji        travel n  dir(+1 cw)  tilt deg (360/PHI^6, 360/PHI^5)
-  // HIS PICKS (live, Danny 14:13 AWST): robots, gears and battery; laps much faster (travel n - 1 rung); all the same way round;
-  // ovals bigger (one rung: rx 100vw/PHI^2, ry 100vh/PHI^3). Fade slower and fainter are in css/style.css. Spin is as it was.
-  var SET = [['\uD83E\uDD16', 6,   1,  -20.06],    // robot
-             ['\u2699\uFE0F', 6.5, 1,  20.06],    // gear
-             ['\uD83D\uDD0B', 7,   1,  -32.46]];   // battery
+  var SET = [['\uD83D\uDE80', 7,   1,  -20.06],    // rocket
+             ['\u2B50',       7.5, -1,  20.06],    // star
+             ['\uD83C\uDF0D', 8,   1,  -32.46]];   // globe
+  if (WHICH.length === SET.length) SET.forEach(function (d, j) { d[0] = WHICH[j]; });
+  if (DIR === 'same') SET.forEach(function (d) { d[2] = 1; }); else if (DIR === 'swap') SET.forEach(function (d) { d[2] = -d[2]; });
   var app = document.getElementById('screen-app'), vq = document.getElementById('view-q');
   if (!app) return;
   var L = document.createElement('div'); L.className = 'orb-layer'; L.setAttribute('aria-hidden', 'true');
   function build(host, sc) {
     return SET.map(function (d, j) {
-      var k = j + 1, T = Math.pow(PHI, d[1] + OWN), ph = (k * G) % 1, sz = Math.pow(PHI, -0.5 * j);
+      var k = j + 1, T = Math.pow(PHI, d[1] + PK.speed + OWN), ph = (k * G) % 1, sz = Math.pow(PHI, -0.5 * j + PK.size);
       var o = document.createElement('div'); o.className = 'orb';
       o.innerHTML = '<span class="orb-x"><span class="orb-y"><span class="orb-u"><span class="orb-e"></span></span></span></span>';
       o.querySelector('.orb-e').textContent = d[0];
       var st = o.style; st.setProperty('--tilt', d[3] + 'deg'); st.setProperty('--T', T.toFixed(3) + 's');
-      st.setProperty('--rx', sc ? (sc[0] * sz).toFixed(1) + 'px' : 'calc(' + (100 / Math.pow(PHI, 2) * sz).toFixed(2) + 'vw)');
-      st.setProperty('--ry', sc ? (sc[1] * sz).toFixed(1) + 'px' : 'calc(' + (100 / Math.pow(PHI, 3) * sz).toFixed(2) + 'vh)');
+      st.setProperty('--rx', sc ? (sc[0] * sz).toFixed(1) + 'px' : 'calc(' + (100 / Math.pow(PHI, 3) * sz).toFixed(2) + 'vw)');
+      st.setProperty('--ry', sc ? (sc[1] * sz).toFixed(1) + 'px' : 'calc(' + (100 / Math.pow(PHI, 4) * sz).toFixed(2) + 'vh)');
       // y runs a quarter cycle behind x (clockwise) or ahead of it (anticlockwise): that phase difference makes the ellipse
       st.setProperty('--dx', (-T * ph).toFixed(3) + 's'); st.setProperty('--dy', (-T * ((ph + (d[2] > 0 ? 0.25 : 0.75)) % 1)).toFixed(3) + 's');
-      st.setProperty('--sd', 'calc(var(--ph6) * -' + ((k * G * G * G) % 1).toFixed(3) + ')'); st.setProperty('--sdir', j % 2 ? 'reverse' : 'normal');
-      st.setProperty('--pd', 'calc(var(--ph6) * -' + ((k * G * G) % 1).toFixed(3) + ')');
+      st.setProperty('--sd', 'calc(var(--ph6) * ' + Math.pow(PHI, num('--pk-orbit-spin', 0)).toFixed(4) + ' * -' + ((k * G * G * G) % 1).toFixed(3) + ')'); st.setProperty('--sdir', j % 2 ? 'reverse' : 'normal');
+      st.setProperty('--pd', 'calc(var(--ph5) * ' + Math.pow(PHI, num('--pk-orbit-fade', 0)).toFixed(4) + ' * -' + ((k * G * G) % 1).toFixed(3) + ')');
       host.appendChild(o);
-      return { e: d[0], travelN: d[1] + OWN, travelS: T, dir: d[2] > 0 ? 'clockwise' : 'anticlockwise', tilt: d[3], spinN: 6 + OWN, spinDir: j % 2 ? 'anticlockwise' : 'clockwise', pulseN: 6 + OWN, size: sz };
+      return { e: d[0], travelN: d[1] + PK.speed + OWN, travelS: T, dir: d[2] > 0 ? 'clockwise' : 'anticlockwise', tilt: d[3], spinN: 6 + num('--pk-orbit-spin', 0) + OWN, spinDir: j % 2 ? 'anticlockwise' : 'clockwise', pulseN: 5 + num('--pk-orbit-fade', 0) + OWN, size: sz };
     });
   }
   var info = build(L);

@@ -57,7 +57,19 @@
     'rhythm/amount': B('{x} more things moving', '{x} fewer things moving', 4, ' moving pieces')
   };
   var GENERIC = { Faster: 'quicker', Slower: 'slower', Bigger: 'bigger', Smaller: 'smaller', Brighter: 'brighter', Fainter: 'fainter', Softer: 'softer', Louder: 'louder', Quieter: 'quieter', Quicker: 'quicker', Longer: 'longer', Shorter: 'shorter', More: 'more', Less: 'less' };
+  // NOW (Kids Club auto-live, Danny 2026-10-26 14:14 AWST): his live picks are phi rungs --pk-<piece>-<part> and colours in the
+  // generated PICKS block (css/style.css), so every direction steps from the value that is live now, not the as-built one.
+  var CS = null, cssv = function (n) { try { CS = CS || getComputedStyle(document.documentElement); return CS.getPropertyValue(n).trim(); } catch (e) { return ''; } };
+  var LIVEC = { 'bot/colour': '--pkc-bot', 'light/colour': '--led', 'tide/colour': '--tide', 'colours/bg': '--bg', 'colours/panel': '--sf', 'colours/accent': '--ac' };
   function meta(pc, p) {
+    var key = pc.id + '/' + p.id, m = meta0(pc, p), r = parseFloat(cssv('--pk-' + pc.id + '-' + p.id)), c = LIVEC[key] && cssv(LIVEC[key]);
+    if (m.c && /^#[0-9a-f]{6}$/i.test(c || '')) return { c: c.toUpperCase() };
+    if (!isFinite(r) || !r) return m;
+    var o = {}; for (var q in m) o[q] = m[q];
+    if (o.n != null) o.n += r; else if (o.b != null) o.b *= Math.pow(PHI, r);
+    return o;
+  }
+  function meta0(pc, p) {
     var m = M[pc.id + '/' + p.id]; if (m) return m;
     if (p.k === 'colour') return { c: '#0B1F4D' };
     if (Array.isArray(p.k)) { var w = p.k.filter(function (x) { return GENERIC[x]; }); if (w.length >= 2) return B('{x} ' + GENERIC[w[0]], '{x} ' + GENERIC[w[1]], 1, '×'); }

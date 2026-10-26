@@ -32,7 +32,7 @@
     var o0 = orbitOf(0), o1 = orbitOf(1), o2 = orbitOf(2);
     // v = what the page shows (plain words only); d = the real numbers, sent to the page owner with the answers, never shown
     return [
-      { id: 'bot', name: 'Your bot', icon: '🤖', demo: function () { return '<img src="img/bot-avatar.svg?v=3" width="88" height="88" alt="">'; },
+      { id: 'bot', name: 'Your bot', icon: '🤖', demo: function () { return '<img src="img/bot-avatar.svg?v=4" width="88" height="88" alt="">'; },
         lead: 'The shiny navy ball at the top, in the chat and at the bottom. It breathes, blinks, wobbles, shines and hops. Each move has its own beat.',
         params: [
           { id: 'colour', l: 'Colour', v: 'navy, with white eyes', d: '#0B1F4D', k: 'colour', h: 'The body colour. The eyes stay white.' },
