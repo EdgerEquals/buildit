@@ -188,6 +188,7 @@ clock's place in its own cycle, and weight = PHI ^ -(phi-steps between the pump'
 | beat | spring-neap (from S2 and M2) | cos(2 x mean elongation), the synodic month's phase | (M2 + S2) / (M2 - S2) equilibrium amplitudes |
 | anom | anomalistic month | cos(Moon's mean anomaly), perigee at +1 | Moon apogee / perigee |
 | year | tropical year | local day length between this latitude's shortest and longest day, -1 to +1 | longest / shortest day |
+| K1 (faster pump) | sidereal day (K1 speed, NOAA) | sun's hour angle + sun's mean longitude (Meeus 25.2) | (K1 + O1) / (K1 - O1) equilibrium amplitudes (Cartwright & Tayler) |
 
 The base is the page's own palette as drawn on the screen. The output's timescale is palette warmth's own timescale, the
 season: the year clock's period (local day-length cycle, cited tropical year). So the year pump has weight 1 and each other
@@ -195,7 +196,12 @@ clock falls by PHI per phi-step away from the year (moon and tides nudge faintly
 is Danny's choice, 26 Oct 2026 13:26 AWST ("change the [weighting] on three"), so the year visibly shows; before, the
 timescale was the kid's return gap (else one day) and the sun swamped the year. Checked at the coarse point: midsummer noon
 leans warm (+0.92 of its peak), midwinter noon leans cool (-0.95), the equinox sits near the page's own palette, with no WCAG
-pull-back needed. Surfaces lean toward the page's warm colour (`--bad`) when the product is above 1 and its cool accent (`--ac`) when it
+pull-back needed. The faster pump (Danny, 26 Oct 2026 13:30 AWST: "adding another pump frequency ... that drives it up in
+frequency"): K1, the lunisolar diurnal tide, goes through the same formula. Measured from the season it would weigh PHI^-12
+and never show, so its weight is the season dial's own rung, PHI^-n (n = Dial 3, between Danny's floor and ceiling). The year
+still leads (summer always leans warm, winter cool), and the colour now also moves within each day: at the coarse point the
+midsummer lean runs about +0.33 to +0.95 over the day and midwinter about -0.36 to -0.98, with no WCAG pull-back. Rollback for
+this pump: tag `pre-skypump-2026-10-26`. Surfaces lean toward the page's warm colour (`--bad`) when the product is above 1 and its cool accent (`--ac`) when it
 is below, by the dial rung x log_PHI(product) / log_PHI(largest product possible today). Then the WCAG floors (text 4.5:1,
 borders 3:1) pull the lean back toward the page's own palette by PHI steps until every pair passes.
 Lite switched on closes a rung; a session without Lite opens one back toward the start.

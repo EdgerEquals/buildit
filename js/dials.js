@@ -153,6 +153,10 @@
   // and every other clock falls by PHI per phi-step away from the year: the moon and tides still nudge, faintly, and the
   // year visibly shows across seasons. (Danny's choice, 26 Oct 2026 13:26 AWST: "change the [weighting] on three". Before,
   // the timescale was the kid's return gap, else one day, which let the sun's day/night swamp the year.)
+  // THE FASTER PUMP (Danny 2026-10-26 13:30 AWST: "adding another pump frequency ... that drives it up in frequency"): K1, the
+  // lunisolar diurnal tide (one cycle per sidereal day, cited speed), through the same formula. Its swing is the cited K1/O1
+  // diurnal beat ratio. Measured from the season it would weigh PHI^-12 (invisible), so its weight is the season dial's own rung,
+  // PHI^-n (n = Dial 3, between Danny's floor and ceiling): the year still leads, and the colour now also moves within each day.
   // The palette leans by: dial rung x (log_PHI of the product) / (log_PHI of the largest product possible today),
   // i.e. a ratio of today's pumped swing to its own peak; then the WCAG safe-side floors (below) pull it back if needed.
 
@@ -165,7 +169,8 @@
   // M2 period: NOAA CO-OPS harmonic constituent speed 28.9841042 deg/h; S2 30 deg/h (Schureman 1958, SP 98).
   // NASA NSSDC fact sheets (nssdc.gsfc.nasa.gov/planetary/factsheet): Moon perigee 0.3633 / apogee 0.4055 (10^6 km);
   //   Earth perihelion 147.095 / aphelion 152.100 (10^6 km).
-  // Equilibrium-tide amplitudes M2 0.242334, S2 0.112841 (Cartwright & Tayler 1971, Geophys. J. R. astr. Soc. 23).
+  // Equilibrium-tide amplitudes M2 0.242334, S2 0.112841, K1 0.141565, O1 0.100514 (Cartwright & Tayler 1971, Geophys. J. R. astr.
+//   Soc. 23). K1 speed 15.0410686 deg/h (NOAA CO-OPS harmonic constituents). Sun's mean longitude L0 (Meeus eq. 25.2).
   // W3C WCAG 2.1: text contrast at least 4.5:1 (SC 1.4.3), UI borders at least 3:1 (SC 1.4.11), relative luminance.
   var SKY = {
     jd1970: 2440587.5, j2000: 2451545, cent: 36525,                        // Meeus ch. 7 (days)
@@ -173,7 +178,7 @@
     pM2: 360 / 28.9841042 / 24, pS2: 360 / 30 / 24,                          // days
     pSyn: 29.530588853, pAnom: 27.554549878, pYear: 365.24219,             // days
     perigee: 0.3633, apogee: 0.4055, perihelion: 147.095, aphelion: 152.100,
-    eqM2: 0.242334, eqS2: 0.112841, h0: -0.833, civil: -6,
+    eqM2: 0.242334, eqS2: 0.112841, eqK1: 0.141565, eqO1: 0.100514, pK1: 360 / 15.0410686 / 24, L0: [280.46646, 36000.76983], h0: -0.833, civil: -6,
     wcagText: 4.5, wcagUi: 3
   };
   var DAYMS = 864e5, RAD = Math.PI / 180;   // unit definitions only (ms per day, degrees to radians)
@@ -230,7 +235,8 @@
       { id: 'S2',   p: SKY.pS2,    c: Math.cos(2 * s.ha * RAD),   sw: SKY.aphelion / SKY.perihelion },               // solar tide: perihelion/aphelion
       { id: 'beat', p: pBeat,      c: Math.cos(2 * D * RAD),      sw: (SKY.eqM2 + SKY.eqS2) / (SKY.eqM2 - SKY.eqS2) }, // spring/neap (phase from the synodic month)
       { id: 'anom', p: SKY.pAnom,  c: Math.cos(Mm * RAD),         sw: SKY.apogee / SKY.perigee },                    // perigee clock
-      { id: 'year', p: SKY.pYear,  c: yc,                         sw: sp[1] / sp[0] }                                // local day length, longest/shortest
+      { id: 'year', p: SKY.pYear,  c: yc,                         sw: sp[1] / sp[0] },                               // local day length, longest/shortest
+      { id: 'K1',   p: SKY.pK1,    c: Math.cos((s.ha + SKY.L0[0] + SKY.L0[1] * T) * RAD), sw: (SKY.eqK1 + SKY.eqO1) / (SKY.eqK1 - SKY.eqO1), fast: 1 }   // the faster pump (Danny 13:30 AWST): lunisolar diurnal tide, sidereal day; swing = K1/O1 diurnal beat
     ];
     out.D = D; out.el = e; out.len = L / 24;   // for the logo (js/logo.js, js/phi-pumps.js): mean elongation (deg), sun height (deg), day length as a share of the day
     return out;
@@ -238,7 +244,8 @@
   function seasonDays() { return SKY.pYear; }   // palette warmth's own timescale: the season (year clock), Danny 13:26 AWST
   function seasonNow() {   // -1 .. +1: today's pumped swing as a ratio of its own peak
     var t = nowT(), P = pumps(t), Tout = seasonDays(), Lsum = 0, Lmax = 0;
-    P.forEach(function (q) { q.w = Math.pow(PHI, -Math.abs(stepsPhi(q.p / Tout))); q.x = q.w * q.c / 2; Lsum += q.x * stepsPhi(q.sw); Lmax += q.w / 2 * stepsPhi(q.sw); });
+    var nFast = R.r.season === 'closed' || R.r.season == null ? null : +R.r.season;
+    P.forEach(function (q) { q.w = q.fast ? (nFast == null ? 0 : Math.pow(PHI, -nFast)) : Math.pow(PHI, -Math.abs(stepsPhi(q.p / Tout))); q.x = q.w * q.c / 2; Lsum += q.x * stepsPhi(q.sw); Lmax += q.w / 2 * stepsPhi(q.sw); });
     seasonNow.last = { pumps: P.map(function (q) { return { id: q.id, period_d: +q.p.toFixed(4), swing: +q.sw.toFixed(4), steps: +Math.abs(stepsPhi(q.p / Tout)).toFixed(2), weight: +q.w.toFixed(4), c: +q.c.toFixed(3) }; }), outDays: +Tout.toFixed(3), product: +Math.pow(PHI, Lsum).toFixed(4), lean: Lmax ? +(Lsum / Lmax).toFixed(4) : 0, at: new Date(t).toISOString() };
     return Lmax ? Lsum / Lmax : 0;
   }

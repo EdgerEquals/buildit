@@ -82,7 +82,7 @@
     else document.dispatchEvent(new CustomEvent('bi:open'));
     Tiers.add(2, startChat, 'chat', false);
     // golden-ratio dials (Kids Club core standard): tier 1, after unlock; nothing before the password
-    if (Tiers.script && !window.Dials) Tiers.script('js/dials.js?v=4', 1, null, 'dials', false);
+    if (Tiers.script && !window.Dials) Tiers.script('js/dials.js?v=5', 1, null, 'dials', false);
     // logo grows with the page (Kids Club): tier 2 after unlock, nothing before the password; its sound and zoom load only on a tap
     if (Tiers.script && !window.Logo) Tiers.script('js/logo.js?v=5', 2, null, 'logo', false);
     if (Tiers.script) { Tiers.script('js/orbit.js?v=1', 2, null, 'orbit'); Tiers.script('js/ratio-pump.js?v=1', 2, { 'data-site': 'buildit', 'data-freq': '0.75' }, 'pump', false); }
