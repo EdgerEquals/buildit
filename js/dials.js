@@ -61,10 +61,12 @@
   var f1 = val(R.r.info) || val(RANGE.info.floor);
   var S = { n: 0, gap: 0, roll: 0, back: 0, skip: 0, ans: 0, drop: 0, lite: 0 }, lastT = 0, longest = sec(9);
   function live(kind) {
-    var t = Date.now();
-    if (lastT) { var g = (t - lastT) / 1000; if (g < longest) S.gap = S.gap ? S.gap + f1 * (g - S.gap) : g; }   // longer than the page's longest beat = away
+    var t = Date.now(), g = 0;
+    if (lastT) { g = (t - lastT) / 1000; if (g < longest) S.gap = S.gap ? S.gap + f1 * (g - S.gap) : g; }   // longer than the page's longest beat = away
     lastT = t; S.n++; if (kind) S[kind]++;
+    BEATS.forEach(function (f) { try { f(g || 0, kind || 'tap'); } catch (e) {} });   // read-only listeners (js/stuck.js): the gap and the kind, never what was tapped
   }
+  var BEATS = [];
   function kindOf(el) {
     if (!el || !el.closest) return null;
     if (el.closest('.roll')) return 'roll';
@@ -284,7 +286,8 @@
     rollback: function (n) { n = n || 1; while (n-- > 0 && R.log.length) { var l = R.log.pop(); R.r[l[1]] = l[2]; } save(); retarget(); return api.rungs(); },
     // read-only, for the logo's pump tree (js/phi-pumps.js): the same on-device sky clocks and the kid's own measured tap rhythm
     sky: function (t) { return pumps(t || nowT()); },
-    rhythm: function () { return { gap: S.gap || 0, usual: (R.lt && R.lt.gap) || 0, sessions: R.s | 0 }; },
+    rhythm: function () { return { gap: S.gap || 0, usual: (R.lt && R.lt.gap) || 0, sessions: R.s | 0, f1: f1, longest: longest }; },
+    onBeat: function (f) { if (typeof f === 'function') BEATS.push(f); },
     report: function () { return { rungs: api.rungs(), level: level(), season: seasonNow(), pumps: seasonNow.last, wcagSteps: floorSteps, gate: GATE, log: R.log.slice(), proposals: JSON.parse(JSON.stringify(R.prop)) }; }
   };
   // ---- preview panel for Danny (?dials=1): rungs, reading, last moves. Nothing here is sent anywhere. ----

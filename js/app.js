@@ -84,9 +84,11 @@
     else document.dispatchEvent(new CustomEvent('bi:open'));
     Tiers.add(2, startChat, 'chat', false);
     // golden-ratio dials (Kids Club core standard): tier 1, after unlock; nothing before the password
-    if (Tiers.script && !window.Dials) Tiers.script('js/dials.js?v=5', 1, null, 'dials', false);
+    if (Tiers.script && !window.Dials) Tiers.script('js/dials.js?v=6', 1, null, 'dials', false);
     // logo grows with the page (Kids Club): tier 2 after unlock, nothing before the password; its sound and zoom load only on a tap
     if (Tiers.script && !window.Logo) Tiers.script('js/logo.js?v=5', 2, null, 'logo', false);
+    // stuck alert to Dad (Kids Club): tier 2 after unlock, reads the dials' rhythm; nothing changes on screen
+    if (Tiers.script && !window.Stuck) Tiers.script('js/stuck.js?v=1', 2, null, 'stuck', false);
     if (Tiers.script) { Tiers.script('js/orbit.js?v=1', 2, null, 'orbit'); Tiers.script('js/ratio-pump.js?v=1', 2, { 'data-site': 'buildit', 'data-freq': '0.75' }, 'pump', false); }
     Tiers.add(3, () => { const l = document.createElement('link'); l.rel = 'prefetch'; l.href = 'js/autodj.js?v=1'; document.head.appendChild(l); }, 'prefetch autodj');
     Tiers.prefetch('img/mark-head.svg?v=1');   // tier 3: an extra-questions preview
@@ -100,6 +102,12 @@
     enc: (o) => C.encryptJSON(key, o), dec: (o) => C.decryptJSON(key, o),
     async send(text, extra) { const m = { id: newId(), ts: Date.now(), from: 'user', text, ...(extra || {}) }; addMsg(m, 'pending'); render(); await deliver(msgs.get(m.id)); return msgs.get(m.id).state; },
     state: (id) => (msgs.get(id) || {}).state,
+    // a silent page signal (js/stuck.js): encrypted, same relay, no text, so it never shows in his chat and the bot's reader skips it
+    async signal(o) {
+      if (!key || !cfg || !o || ['stuck', 'recovered'].indexOf(o.kind) < 0) return false;
+      const m = { id: newId(), ts: Date.now(), from: 'user', kind: o.kind, step: String(o.step || '').slice(0, 89), label: String(o.label || '').slice(0, 89), before: String(o.before || '').slice(0, 13) };
+      try { const r = await fetch(`${cfg.relay.base}/${cfg.relay.topic}`, { method: 'POST', body: JSON.stringify({ v: 1, ...(await C.encryptJSON(key, m)) }), headers: { 'Content-Type': 'text/plain' } }); return r.ok; } catch (e) { return false; }
+    },
     // read-only, for the logo (js/logo.js): his own answer sets already in this page's memory (decrypted log + pending), and the palette list
     mine: () => [...msgs.values()].filter((m) => m.from === 'user' && m.kind === 'answers' && m.state !== 'failed').map((m) => ({ part: m.part, text: m.text, ts: m.ts })),
     pals: () => PALS.map((p) => ({ t: p.t, pal: { ...p.pal } }))
