@@ -136,7 +136,7 @@
       conv.buffer = ir; revIn = ctx.createGain(); revIn.gain.value = 0.35; revIn.connect(conv); conv.connect(bus);
       duckG = ctx.createGain(); duckG.gain.value = ducked ? DIP() : 1;   // the logo dip (Loudness standard, 14:26): its own node, so the pump volume never fights it
       bus.connect(duckG); duckG.connect(master); master.connect(comp); comp.connect(ctx.destination); out = comp; bridge();
-      ctx.addEventListener('statechange', function () { if (!playing) return; if (ctx.state === 'running') { if (RS.down) attempt('state'); } else later('state'); });   // another app took the sound
+      ctx.addEventListener('statechange', function () { if (!playing) return; if (ctx.state === 'running') { if (RS.down) attempt(); } else later('state'); });   // another app took the sound
       meter = ctx.createAnalyser(); meter.fftSize = 2048; comp.connect(meter);              // level check for tests only
       var n = ctx.sampleRate, b = ctx.createBuffer(1, n, n), nd = b.getChannelData(0); for (var j = 0; j < n; j++) nd[j] = Math.random() * 2 - 1; noise = b;
     } catch (e) { ctx = null; }
@@ -311,18 +311,25 @@
   // Gestures: every try calls resume() and play() first, before anything async. Unlock on finger lift (pointerup / touchend) for touch,
   // pointerdown for a mouse, keydown for keys; and (guard 17:31) the touch PRESS is a try too, because a scrolling touch ends in
   // touchcancel / pointercancel with no lift. Only while the DJ is on: his own pause is never undone.
-  var RS = { down: false, k: 0, t: 0, wait: 0, ui: null };
+  var RS = { down: false, k: 0, t: 0, wait: 0, ui: null, el: false };
   function TAP() { var B = window.PhiPumps && PhiPumps.B ? +PhiPumps.B() : 0; return (B > 0 ? B : Math.pow(PHI, 5)) * Math.pow(PHI, -10); }   // phi: tap-rung beat
   function elOn() { return !el || (!el.paused && !el.ended); }
   function okNow() { return !!ctx && ctx.state === 'running' && elOn(); }
-  function tryNow() { try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {} var p = null; try { p = ctx.resume(); } catch (e) {} elPlay(); return p; }
-  function settle() { stalled = false; jump(); tick(); session('playing'); paint(compute()); if (okNow()) { clearTimeout(RS.t); RS.t = 0; RS.down = false; RS.k = 0; hideBack(); disarm(); } }
+  // guard 18:47 AWST 26 Oct: sound reaching the speakers (the context runs and the helper player or the direct path carries it) ends the ladder;
+  // the paused helper player restarts only inside a real tap (tap = true), never on a timer, and the audio session is set only on a tap.
+  function heard() { return !!ctx && ctx.state === 'running' && (elOn() || direct); }
+  function tryNow(tap) { var p = null;
+    if (tap) { try { if (navigator.audioSession && navigator.audioSession.type !== 'playback') navigator.audioSession.type = 'playback'; } catch (e) {} }
+    if (ctx.state !== 'running') { try { p = ctx.resume(); } catch (e) {} }
+    if (tap) { elPlay(); RS.el = false; } else if (!elOn()) { RS.el = true; arm(); }   // helper waits for his next tap
+    return p; }
+  function settle() { stalled = false; jump(); tick(); session('playing'); paint(compute()); if (heard()) { clearTimeout(RS.t); RS.t = 0; RS.down = false; RS.k = 0; hideBack(); if (elOn()) { RS.el = false; disarm(); } else { RS.el = true; arm(); } } }
   function drop() { clearTimeout(RS.t); clearTimeout(RS.wait); RS.t = RS.wait = 0; RS.down = false; RS.k = 0; hideBack(); }
-  function attempt() {
+  function attempt(tap) {
     if (!playing || !ctx) { drop(); return; }
-    if (okNow()) { if (RS.down || stalled) settle(); return; }
-    RS.down = true; var p = tryNow();
-    var after = function () { if (ctx.state === 'running') { settle(); if (okNow()) return; } else { stalled = true; arm(); paint(compute()); if (!document.hidden) showBack(); } ladder(); };
+    if (heard() && (!tap || elOn())) { if (RS.down || stalled) settle(); else if (!elOn()) { RS.el = true; arm(); } return; }
+    RS.down = true; var p = tryNow(tap);
+    var after = function () { if (ctx.state === 'running') { settle(); if (heard()) return; } else { stalled = true; arm(); paint(compute()); if (!document.hidden) showBack(); } ladder(); };
     if (p && p.then) p.then(after, after); else setTimeout(after, 0);
   }
   function ladder() { if (RS.t || !RS.down) return; var k = Math.min(RS.k, 5); RS.k++; RS.t = setTimeout(function () { RS.t = 0; attempt(); }, TAP() * Math.pow(PHI, k) * MS); }   // phi: beat x PHI^0..5
@@ -338,13 +345,13 @@
   function hideBack() { if (RS.ui) { try { RS.ui.remove(); } catch (e) {} RS.ui = null; } }
   function wake() { if (playing && ctx) later(); }                         // visibilitychange / pageshow / focus: after one tap-rung beat
   function resumeTap() {
-    if (ctx && playing) tryNow();                                          // inside the gesture, before anything else
+    if (ctx && playing) tryNow(true);                                      // inside the gesture, before anything else
     if (!masterOn()) { var sw = soundSwitch(); if (sw) sw.click(); }
-    if ((stalled || RS.down) && playing && ctx) { attempt(); return; }
+    if ((stalled || RS.down) && playing && ctx) { attempt(true); return; }
     disarm(); if (pend) start(pend);
   }
   var armed = false, GEST = ['pointerdown', 'pointerup', 'pointercancel', 'touchstart', 'touchend', 'touchcancel', 'click', 'keydown'];
-  function onGesture(e) { if (btn && btn.contains(e.target)) return; if (pend || stalled || RS.down) resumeTap(); else disarm(); }
+  function onGesture(e) { if (btn && btn.contains(e.target)) return; if (pend || stalled || RS.down || RS.el) resumeTap(); else disarm(); }
   function arm() { if (armed) return; armed = true; GEST.forEach(function (n) { document.addEventListener(n, onGesture, true); }); }
   function disarm() { if (!armed) return; armed = false; GEST.forEach(function (n) { document.removeEventListener(n, onGesture, true); }); }
   // register with js/rhythm.js (save cadence, lifecycle hooks, catch-up and the daily restart live there)

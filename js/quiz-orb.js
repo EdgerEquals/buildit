@@ -161,6 +161,7 @@
         b.onclick = function () { if (b.getAttribute('aria-pressed') === 'true') return; b.setAttribute('aria-pressed', 'true'); s.onTap && s.onTap(x[0]); }; row.appendChild(b); });
       var g = el('button', 'go', s.onDone ? 'Next →' : 'Got it →'); g.type = 'button'; g.onclick = function () { if (s.onDone) s.onDone(); else home(); }; row.appendChild(g);
       try { g.focus({ preventScroll: true }); } catch (e) {}
+      if (st && st.t === 1) { geo(); draw(); try { g.scrollIntoView({ block: 'nearest' }); } catch (e) {} }   // the panel just grew (feedback + Next): re-place it, Next in view
     }
     s.mark = mark; if (s.picked != null) mark();
   }
