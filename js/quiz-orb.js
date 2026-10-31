@@ -1,5 +1,5 @@
 /* QuizOrb: ONE quiz orb for the page, built on the Kids Club reference help orb architecture: a single instance
-   made by init(), a fixed home dock bottom-right with safe-area insets that lifts above the footer (avoid()), one dialog
+   made by init(), a fixed home dock bottom-left with safe-area insets that rides in the footer's left slot (avoid()), one dialog
    with a focus trap, Escape and focus returned to where it came from, and a spring back home.
    What is new here: when a "name this" question is asked the orb grows and travels to the centre of the screen, shows
    the question and its 2 / 3 / 5 / 10 options, then glides home once the learner is done with it.
@@ -35,9 +35,13 @@
   function css() {
     var s = document.createElement('style'); s.id = 'quiz-orb-css';
     s.textContent =
-      '.qorb{position:fixed;right:calc(14px + env(safe-area-inset-right,0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:40;width:48px;height:48px;border-radius:50%;padding:0;border:2px solid rgba(227,236,250,.75);' +
+      ':root{--qo:48px;--qo-in:14px}' +   // the orb's one size and its inset: the footer slot below is built from these two
+      '.qorb{position:fixed;left:calc(var(--qo-in) + env(safe-area-inset-left,0px));bottom:calc(var(--qo-in) + env(safe-area-inset-bottom,0px));z-index:40;width:var(--qo);height:var(--qo);border-radius:50%;padding:0;border:2px solid rgba(227,236,250,.75);' +
       'background:radial-gradient(circle at 34% 28%,#5A7DB5,#0B1F4D 58%,#050D1F);color:#fff;font:700 1.35rem/1 system-ui,sans-serif;box-shadow:0 2px 12px rgba(0,0,0,.45);cursor:pointer;transform-origin:50% 50%;will-change:transform;-webkit-tap-highlight-color:transparent}' +
       '.qorb i{display:block;font-style:normal}' +
+      // FOOTER DOCK, bottom-left (his ask, Danny's yes 2026-10-31 19:57 AWST): the footer keeps a slot on its left for the orb
+      // (inset + orb + inset/PHI) and is at least orb + 2 x orb/PHI^4 tall, so the orb sits inside it, clear of Send and the composer.
+      '#foot .hc{padding-left:calc(var(--qo-in) * 1.618034 + var(--qo) + env(safe-area-inset-left,0px));min-height:calc(var(--qo) * (1 + 2 * .145898) + env(safe-area-inset-bottom,0px))}' +
       // ALWAYS GENTLY ALIVE (Kids Club help-orb standard, Danny 14:47 AWST; the Kids Club reference help orb: a whole-orb breath
       // plus a soft halo). Period = breath B (js/phi-pumps.js, --qb), golden-angle start; size 1 + PHI^-6, halo to PHI^-1. Only at
       // rest: it calms while dragged, open or asking. Uses scale + opacity only (no transform clash with the spring). Off in Lite / reduced motion.
@@ -173,9 +177,26 @@
   }
   // the page tells the orb an answer came in (from the orb or the inline card): both show the same feedback
   function picked(k) { if (st && st.spec) { st.spec.picked = k; if (st.t === 1 && st.spec.mark) st.spec.mark(); } }
-  function avoid() {   // never sit on the footer: lift the dock above it while it is on screen
-    if (!st) return; var f = document.getElementById('foot'), r = f && f.getBoundingClientRect();
-    st.orb.style.bottom = r && r.top < innerHeight ? Math.round(innerHeight - r.top + 10) + 'px' : '';
+  // home dock = the footer's left slot. Footer on screen: the orb rides in it, centred on the footer's own row, never lower
+  // than its bottom-left inset. Footer below the fold: bottom-left inset, lifted over the chat composer or call-me row if it
+  // would cover them (inset / PHI clear), so Send and the typing boxes are never under the orb.
+  var CLEAR = ['send-form', 'cm-ok', 'cm-in'];   // the chat composer (Send + message box) and the call-me row
+  function avoid() {
+    if (!st) return; var o = st.orb, H = innerHeight, f = document.getElementById('foot'), r = f && f.getBoundingClientRect();
+    o.style.bottom = ''; var cs = getComputedStyle(o), base = parseFloat(cs.bottom) || 0, oh = o.offsetHeight, b = base;
+    if (r && r.height && r.top < H && r.bottom > 0) {
+      var hc = f.querySelector('.hc') || f, q = hc.getBoundingClientRect(), qs = getComputedStyle(hc);
+      var top = q.top + (parseFloat(qs.paddingTop) || 0), bot = q.bottom - (parseFloat(qs.paddingBottom) || 0);
+      b = Math.max(base, H - (top + bot) / 2 - oh / 2);
+    }
+    var L = (parseFloat(cs.left) || 0) + oh;
+    for (var n = 0; n < CLEAR.length + 1; n++) {   // lift over whichever typing / send part is under it, until none is
+      var hit = 0; CLEAR.forEach(function (id) { var c = document.getElementById(id), k = c && c.getClientRects().length ? c.getBoundingClientRect() : null;
+        if (k && k.width && k.top < H && k.bottom > 0 && k.bottom > H - b - oh && k.top < H - b && k.left < L) { b = Math.max(b, H - k.top + base / PHI); hit = 1; } });
+      if (!hit) break;
+    }
+    b = Math.min(b, Math.max(base, H - oh - base));   // never lifted off the top of the screen
+    o.style.bottom = Math.abs(b - base) < 0.5 ? '' : Math.round(b) + 'px';
     if (!st.raf && st.t === 0) { st.g = null; }
   }
   var K_LOOK = 'buildit.orblook';
@@ -236,7 +257,7 @@
     var r = el('div', 'r'); buttons.forEach(function (b) { var x = el('button', b[2] ? 'go' : null, b[0]); x.type = 'button'; x.onclick = function (e) { e.stopPropagation(); b[1](); }; r.appendChild(x); });
     t.appendChild(r); (document.getElementById('screen-app') || document.body).appendChild(t); st.tip = t;
     var o = st.orb.getBoundingClientRect(), pad = st.orb.offsetWidth / (PHI * PHI);
-    t.style.right = Math.max(pad, innerWidth - o.right) + 'px'; t.style.bottom = (innerHeight - o.top + pad) + 'px';
+    t.style.left = Math.max(pad, o.left) + 'px'; t.style.bottom = (innerHeight - o.top + pad) + 'px';
   }
   function untip() { if (st && st.tip) { st.tip.remove(); st.tip = null; } }
   function seek(on) {
