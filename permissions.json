@@ -1,5 +1,9 @@
 {
-  "_doc": "Edit permissions for this page. ONE setting: edit_mode. 'propose-only' = the user can ask for changes, nothing they ask changes anything; each ask (and each answer set from the questions) goes to a private queue for Danny's yes (chat.py propose / proposals). 'allow-listed' = only items in allowed_without_danny may be done without Danny. Unknown values fall back to propose-only. Changing this needs Danny's yes.",
-  "edit_mode": "propose-only",
-  "allowed_without_danny": []
+  "_doc": "Edit permissions for this page. ONE setting: edit_mode. 'propose-only' = the user can ask for changes, nothing they ask changes anything; each ask (and each answer set from the questions) goes to a private queue for Danny's yes (chat.py propose / proposals). 'allow-listed' = only items in allowed_without_danny may be done without Danny; each change still gets its own rollback tag first. Unknown values fall back to propose-only. Set to allow-listed by Danny 2026-10-31 19:57 AWST. STILL NEEDS DANNY'S YES (never on the allow-list): anything touching safety or privacy; the user's real name or call-me name; who can contact the user, or the chat, relay, password or encryption; any data leaving the page; external links, embeds or third-party services; and the Kids Club safety rails in the shared layer (contrast floor, tap size, flash and loudness limits, rate limits). Renaming the bot stays the user's own call (see chat.py). Changing this file needs Danny's yes.",
+  "edit_mode": "allow-listed",
+  "allowed_without_danny": [
+    "page look and feel: colours, themes, backgrounds, fonts, sizes, speeds, animations, sounds and music settings",
+    "layout: moving, resizing, showing or hiding things on his page",
+    "page content and new page features on his own page that don't touch the items below"
+  ]
 }
