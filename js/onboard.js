@@ -114,6 +114,7 @@
   async function nameMore() { if (!done()) return start(); if (!M) await mload(); run(ses(false)); }
   function run(se) {
     if (!window.QuizOrb || !window.BI || !BI.ready()) return;
+    var tb = document.querySelector('.tabs'); if (tb && tb.hidden) return;   // chat-only page (his pick 2026-11-06)
     SES = se; queue(se);
     if (!se.st().q.length) return finish(se);
     running = true; document.documentElement.classList.add('ob-naming');

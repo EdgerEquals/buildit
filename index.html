@@ -42,7 +42,7 @@
     <div class="hc">
       <span class="brand"><span class="bmark" aria-hidden="true" hidden><i></i><i></i></span><img class="botav hd" id="h-av" src="img/bot-avatar.svg?v=4" width="34" height="34" alt="" decoding="async"><span id="h-title" class="htitle">My page</span></span>
       <button type="button" id="dj-pill" class="djpill" aria-expanded="false" aria-controls="dj-pop" data-use="dj"><span class="djl" aria-hidden="true"></span>&#9835; DJ</button>
-      <div class="tabs" role="tablist" aria-label="Sections">
+      <div class="tabs" role="tablist" aria-label="Sections" hidden>
         <button type="button" class="tab on" id="tab-q" aria-controls="view-q" aria-selected="true" role="tab">Questions</button>
         <button type="button" class="tab" id="tab-c" aria-controls="view-c" aria-selected="false" role="tab">Chat<b class="dotn" id="chat-new" hidden></b></button>
       </div>
@@ -59,7 +59,7 @@
   </header>
 
   <main class="wrap">
-    <section id="view-q" class="view" role="tabpanel" aria-labelledby="tab-q">
+    <section id="view-q" class="view" role="tabpanel" aria-labelledby="tab-q" hidden>
       <section class="panel" id="q-start">
         <div class="leadrow"><img class="botav" src="img/bot-avatar.svg?v=4" width="56" height="56" alt="" aria-hidden="true" decoding="async"><h1 id="q-hello">Hey!</h1></div>
         <p class="lead" id="q-lead"></p>
@@ -119,7 +119,7 @@
       </section>
     </section>
 
-    <section id="view-c" class="view" role="tabpanel" aria-labelledby="tab-c" hidden>
+    <section id="view-c" class="view" role="tabpanel" aria-labelledby="tab-c">
       <div class="chatbox">
         <div class="botbar"><span class="bn"><img class="botav sm" src="img/bot-avatar.svg?v=4" width="28" height="28" alt="" aria-hidden="true" decoding="async"><span class="botname" id="bot-name">Bot</span></span><button type="button" class="renbtn" id="ren-btn" aria-expanded="false" aria-controls="ren-form">&#9998; Rename</button></div>
         <form id="ren-form" class="renform" hidden autocomplete="off">
@@ -144,6 +144,6 @@
   </footer>
 </div>
 <script src="js/crypto.js?v=4"></script>
-<script src="js/app.js?v=32" defer></script>
+<script src="js/app.js?v=33" defer></script>
 </body>
 </html>
